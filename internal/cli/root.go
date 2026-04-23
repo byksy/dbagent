@@ -20,6 +20,7 @@ const (
 	ExitExtNotReady  = 3
 	ExitConnFailed   = 4
 	ExitInternal     = 5
+	ExitParseFailed  = 6
 )
 
 // ExitError is a typed error that carries a process exit code, so that
@@ -107,6 +108,7 @@ output to suggest optimizations.`,
 
 	cmd.AddCommand(newInitCmd())
 	cmd.AddCommand(newTopCmd())
+	cmd.AddCommand(newAnalyzeCmd())
 	cmd.AddCommand(newVersionCmd())
 
 	return cmd
