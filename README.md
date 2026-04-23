@@ -18,7 +18,7 @@ The tool is being built in stages. Stage 3 will introduce a rule engine producin
 **Users:**
 
 ```bash
-go install github.com/byksy/dbagent/cmd/dbagent@v0.1.1
+go install github.com/byksy/dbagent/cmd/dbagent@v0.2.0
 ```
 
 (Until the module is mature, pin to a specific tag. `@latest` will resolve
