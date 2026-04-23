@@ -4,9 +4,9 @@
 
 ## What it is
 
-`dbagent` is a command-line tool for investigating PostgreSQL query performance from your terminal. In its current state it reads `pg_stat_statements` and prints the top queries by total time, mean time, or call count as a compact table. Every invocation is a single command — there is no daemon, no background agent, and nothing is ever written to your database.
+`dbagent` is a command-line tool for investigating PostgreSQL query performance from your terminal. It reads `pg_stat_statements` to show the top queries on a live server (`dbagent top`), and parses `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` output into a typed plan tree with a short summary of notable nodes (`dbagent analyze`). Every invocation is a single command — there is no daemon, no background agent, and nothing is ever written to your database.
 
-The tool is being built in stages. Stage 2 adds an `analyze` command that can parse `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` output into a typed plan model — supporting live query-ids, raw SQL, and pasted/piped plan JSON. Stage 3 introduces a rule engine producing diagnostic and prescriptive findings. Later stages add schema introspection (so we don't suggest indexes that already exist), `hypopg` simulation, and optional LLM-assisted explanations.
+The tool is being built in stages. Stage 3 will introduce a rule engine producing diagnostic and prescriptive findings. Later stages add schema introspection (so we don't suggest indexes that already exist), `hypopg` simulation, and optional LLM-assisted explanations.
 
 ## Requirements
 
@@ -151,6 +151,39 @@ Example:
 dbagent top --limit 10 --order-by mean --verbose
 ```
 
+### `dbagent analyze`
+
+Parse and render an `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` plan from a file or stdin. Offline — no DB connection needed.
+
+```
+--plan-file string       path to EXPLAIN JSON file; empty means read from stdin
+--format string          output format: tree (default), table, json
+--width int              override terminal width; 0 = auto-detect
+```
+
+Examples:
+
+```bash
+# From a file
+dbagent analyze --plan-file plan.json
+
+# From stdin
+psql -U me -d mydb -c "EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) SELECT ..." \
+    | dbagent analyze
+
+# Alternative formats
+dbagent analyze --plan-file plan.json --format table
+dbagent analyze --plan-file plan.json --format json | jq '.summary'
+```
+
+Capture plans from PostgreSQL using:
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) <your query>
+```
+
+Only JSON format is supported in this version. TEXT/YAML/XML will produce a clear error.
+
 ### `dbagent version`
 
 Print version and runtime info:
@@ -162,8 +195,8 @@ go1.22.x linux/amd64
 
 ## Roadmap
 
-1. ✓ **Stage 1 — pg_stat_statements reader (`top` command)** *(current)*
-2. Stage 2 — EXPLAIN runner + typed plan model (`analyze` command, supports live queryid, raw SQL, and pasted plan JSON)
+1. ✓ Stage 1 — pg_stat_statements reader (`top` command)
+2. ✓ **Stage 2 — EXPLAIN plan parser, `analyze` command (offline tree/table/JSON rendering + summary)** *(current)*
 3. Stage 3 — Rule engine: first diagnostic and prescriptive findings
 4. Stage 4 — Schema introspection (avoid suggesting indexes that already exist)
 5. Stage 5 — Extended rule set (15-20 rules)

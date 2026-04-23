@@ -1,0 +1,11 @@
+Plan (total: 0.2ms, planning: 0.1ms, execution: 0.0ms)
+
+[1] Limit  rows=100  time=0.0ms  loops=1
+    buffers: shared hit=4 read=0
+└─ [2] Seq Scan on orders  rows=100  time=0.0ms  loops=1
+    filter=(status = 'shipped'::text)  filter_removed=300
+    buffers: shared hit=4 read=0
+
+Summary
+  Slowest node (exclusive):  [2] Seq Scan on orders — 0.0ms (12% of total)
+  Biggest row misestimate:   [2] Seq Scan on orders — planned 12,392, actual 100 (123.9× over)

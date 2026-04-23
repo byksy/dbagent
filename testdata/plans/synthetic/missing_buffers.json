@@ -1,0 +1,19 @@
+[
+  {
+    "Plan": {
+      "Node Type": "Seq Scan",
+      "Relation Name": "small_table",
+      "Alias": "small_table",
+      "Startup Cost": 0.00,
+      "Total Cost": 10.00,
+      "Plan Rows": 50,
+      "Plan Width": 8,
+      "Actual Startup Time": 0.02,
+      "Actual Total Time": 0.30,
+      "Actual Rows": 50,
+      "Actual Loops": 1
+    },
+    "Planning Time": 0.1,
+    "Execution Time": 0.5
+  }
+]

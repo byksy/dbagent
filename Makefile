@@ -1,4 +1,4 @@
-.PHONY: build test test-integration lint run docker-up docker-down tidy clean
+.PHONY: build test test-integration lint run docker-up docker-down tidy clean fixtures
 
 BINARY := bin/dbagent
 
@@ -25,6 +25,9 @@ docker-down:
 
 tidy:
 	go mod tidy
+
+fixtures:
+	./scripts/capture-fixtures.sh
 
 clean:
 	rm -rf bin/
