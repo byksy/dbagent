@@ -123,6 +123,10 @@ func isExtensionMissingErr(err error) bool {
 		return true
 	}
 	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "pg_stat_statements") &&
-		(strings.Contains(msg, "does not exist") || strings.Contains(msg, "not loaded"))
+	if !strings.Contains(msg, "pg_stat_statements") {
+		return false
+	}
+	return strings.Contains(msg, "does not exist") ||
+		strings.Contains(msg, "not loaded") ||
+		strings.Contains(msg, "must be loaded")
 }
