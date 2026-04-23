@@ -6,26 +6,35 @@ import (
 	"strings"
 
 	"github.com/byksy/dbagent/internal/plan"
+	"github.com/byksy/dbagent/internal/rules"
 )
 
-// renderTree renders a Plan as an indented box-drawing tree followed
-// by a summary block.
-func renderTree(w io.Writer, p *plan.Plan, s *plan.Summary) error {
+// renderTree renders a Plan as an indented box-drawing tree, a
+// summary block, and a findings section. Findings attached to a node
+// add severity icons to that node's header.
+func renderTree(w io.Writer, p *plan.Plan, s *plan.Summary, findings []rules.Finding) error {
 	fmt.Fprintf(w, "Plan (total: %s, planning: %s, execution: %s)\n\n",
 		formatDurationMs(p.TotalTimeMs),
 		formatDurationMs(p.PlanningTimeMs),
 		formatDurationMs(p.ExecutionTimeMs),
 	)
-	writeNode(w, p.Root, "", true)
+	byNode, _ := findingsByNode(findings)
+	writeNode(w, p.Root, "", true, byNode)
 	fmt.Fprintln(w)
 	writeSummary(w, p, s)
+	if len(findings) > 0 {
+		fmt.Fprintln(w)
+		_ = formatFindingsSection(w, findings)
+	}
 	return nil
 }
 
 // writeNode writes one node and recurses into its children. "prefix"
 // is the continuation characters accumulated from ancestors; "isLast"
-// tells us which junction character to pick for this node.
-func writeNode(w io.Writer, n *plan.Node, prefix string, isLast bool) {
+// tells us which junction character to pick for this node. The
+// byNode map carries findings keyed by NodeID so each node's header
+// can be annotated with severity icons.
+func writeNode(w io.Writer, n *plan.Node, prefix string, isLast bool, byNode map[int][]rules.Finding) {
 	if n == nil {
 		return
 	}
@@ -43,7 +52,11 @@ func writeNode(w io.Writer, n *plan.Node, prefix string, isLast bool) {
 		headerPrefix = prefix + branch
 	}
 
-	fmt.Fprintln(w, headerPrefix+nodeHeader(n))
+	header := nodeHeader(n)
+	if icons := severityIcons(byNode[n.ID]); icons != "" {
+		header = header + "  " + icons
+	}
+	fmt.Fprintln(w, headerPrefix+header)
 
 	detailPrefix := childPrefix
 	if n.Depth == 0 {
@@ -62,7 +75,7 @@ func writeNode(w io.Writer, n *plan.Node, prefix string, isLast bool) {
 		} else if isLast {
 			nextPrefix = prefix + "    "
 		}
-		writeNode(w, c, nextPrefix, last)
+		writeNode(w, c, nextPrefix, last, byNode)
 	}
 }
 

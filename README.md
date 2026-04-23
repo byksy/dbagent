@@ -4,9 +4,9 @@
 
 ## What it is
 
-`dbagent` is a command-line tool for investigating PostgreSQL query performance from your terminal. It reads `pg_stat_statements` to show the top queries on a live server (`dbagent top`), and parses `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` output into a typed plan tree with a short summary of notable nodes (`dbagent analyze`). Every invocation is a single command — there is no daemon, no background agent, and nothing is ever written to your database.
+`dbagent` is a command-line tool for investigating PostgreSQL query performance from your terminal. It reads `pg_stat_statements` to show the top queries on a live server (`dbagent top`), parses `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` output into a typed plan tree, and runs diagnostic and prescriptive rules to point out hot nodes, misestimates, missing indexes, and more (`dbagent analyze`). Every invocation is a single command — there is no daemon, no background agent, and nothing is ever written to your database.
 
-The tool is being built in stages. Stage 3 will introduce a rule engine producing diagnostic and prescriptive findings. Later stages add schema introspection (so we don't suggest indexes that already exist), `hypopg` simulation, and optional LLM-assisted explanations.
+The tool is being built in stages. Upcoming work includes schema introspection (so we don't suggest indexes that already exist), an expanded rule set, `hypopg` simulation, and optional LLM-assisted explanations.
 
 ## Requirements
 
@@ -153,11 +153,33 @@ dbagent top --limit 10 --order-by mean --verbose
 
 ### `dbagent analyze`
 
-Parse and render an `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` plan from a file or stdin. Offline — no DB connection needed.
+Parse and render an `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` plan from a file or stdin. Offline — no DB connection needed. Runs eight built-in rules that emit diagnostic and prescriptive findings (see [`docs/rules.md`](docs/rules.md) for the full list).
 
 ```
 --plan-file string       path to EXPLAIN JSON file; empty means read from stdin
 --format string          output format: tree (default), table, json
+--fail-on string         exit code 7 if any finding reaches this severity: info|warning|critical
+```
+
+Example output:
+
+```
+Plan (total: 125.3ms, planning: 0.3ms, execution: 125.0ms)
+
+[1] Seq Scan on rule_orders  rows=5,000  time=120.0ms  loops=1  ✗
+    filter=(status = 'shipped'::text)  filter_removed=495,000
+    buffers: shared hit=8,000 read=0
+
+Summary
+  Slowest node (exclusive):  [1] Seq Scan on rule_orders — 120.0ms (96% of total)
+
+Findings
+  CRITICAL  [1]
+            └─ missing_index_on_filter
+               Filter removes 99% of rows scanned (495000 rows). Consider an index to push the predicate down.
+               Suggested: CREATE INDEX ON rule_orders (status);
+
+1 findings (1 critical)
 ```
 
 Examples:
@@ -172,7 +194,10 @@ psql -U me -d mydb -c "EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) SELECT ..." \
 
 # Alternative formats
 dbagent analyze --plan-file plan.json --format table
-dbagent analyze --plan-file plan.json --format json | jq '.summary'
+dbagent analyze --plan-file plan.json --format json | jq '.summary.findings'
+
+# CI gate: fail the build on any critical finding
+dbagent analyze --plan-file plan.json --fail-on critical
 ```
 
 Capture plans from PostgreSQL using:
@@ -195,8 +220,8 @@ go1.22.x linux/amd64
 ## Roadmap
 
 1. ✓ Stage 1 — pg_stat_statements reader (`top` command)
-2. ✓ **Stage 2 — EXPLAIN plan parser, `analyze` command (offline tree/table/JSON rendering + summary)** *(current)*
-3. Stage 3 — Rule engine: first diagnostic and prescriptive findings
+2. ✓ Stage 2 — EXPLAIN plan parser, `analyze` command (offline tree/table/JSON rendering + summary)
+3. ✓ **Stage 3 — Rule engine: first eight diagnostic and prescriptive findings** *(current — see [`docs/rules.md`](docs/rules.md))*
 4. Stage 4 — Schema introspection (avoid suggesting indexes that already exist)
 5. Stage 5 — Extended rule set (15-20 rules)
 6. Stage 6 — Output formats (JSON, Markdown) and shareable reports

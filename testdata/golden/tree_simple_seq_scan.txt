@@ -2,10 +2,26 @@ Plan (total: 0.2ms, planning: 0.1ms, execution: 0.0ms)
 
 [1] Limit  rows=100  time=0.0ms  loops=1
     buffers: shared hit=4 read=0
-└─ [2] Seq Scan on orders  rows=100  time=0.0ms  loops=1
+└─ [2] Seq Scan on orders  rows=100  time=0.0ms  loops=1  ℹ ⚠
     filter=(status = 'shipped'::text)  filter_removed=300
     buffers: shared hit=4 read=0
 
 Summary
   Slowest node (exclusive):  [2] Seq Scan on orders — 0.0ms (13% of total)
   Biggest row misestimate:   [2] Seq Scan on orders — planned 12,448, actual 100 (124.5× over)
+
+Findings
+  WARNING   [2]
+            └─ row_misestimate
+               Planner estimated 12448 rows, actual is 100 (124.5× over).
+               Suggested: ANALYZE orders;
+
+  INFO      [2]
+            └─ filter_removal_ratio
+               75% of rows read are discarded by filter (300 rows removed, 100 kept).
+
+  INFO      plan
+            └─ planning_vs_execution
+               Planning (0.1ms) exceeds execution (0.0ms). Consider PREPARE/EXECUTE for frequent, fast queries.
+
+3 findings (1 warning, 2 info)
