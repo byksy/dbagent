@@ -18,8 +18,11 @@ The tool is being built in stages. Stage 2 adds an `analyze` command that can pa
 **Users:**
 
 ```bash
-go install github.com/byksy/dbagent/cmd/dbagent@latest
+go install github.com/byksy/dbagent/cmd/dbagent@v0.1.1
 ```
+
+(Until the module is mature, pin to a specific tag. `@latest` will resolve
+to the newest tagged release.)
 
 Homebrew, precompiled binaries, and a Docker image are *coming in v0.3 — see the roadmap*.
 
