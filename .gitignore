@@ -1,6 +1,6 @@
 # Binaries
 bin/
-dbagent
+/dbagent
 *.exe
 
 # Test artifacts
