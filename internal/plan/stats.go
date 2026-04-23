@@ -35,26 +35,32 @@ func (n *Node) InclusiveTimeMs() float64 {
 	return n.ActualTotalTimeMs * float64(loopsOrOne(n))
 }
 
-// ActualRowsTotal returns the total row count across loops and
-// parallel workers. PostgreSQL emits ActualRows as a per-loop,
-// per-worker figure for parallel leaves, so we multiply by both Loops
-// and the parallel-row multiplier.
+// ActualRowsTotal returns the total row count this node produced
+// across all its loops. For parallel scans PostgreSQL already encodes
+// the worker count in Loops (Loops = workers_launched + leader
+// participation), so a simple ActualRows × Loops gives the correct
+// total for both parallel and non-parallel nodes. Gather/Gather Merge
+// nodes have Loops = 1 with ActualRows already holding the combined
+// output, which also works out correctly.
 func (n *Node) ActualRowsTotal() int64 {
 	if n == nil || n.NeverExecuted {
 		return 0
 	}
-	return n.ActualRows * loopsOrOne(n) * parallelRowMultiplier(n)
+	return n.ActualRows * loopsOrOne(n)
 }
 
-// MisestimateFactor returns max(actual/planned, planned/actual). A
-// PlanRows or ActualRowsTotal of 0 returns 0 so callers can short-
-// circuit "no data" rather than dividing by zero.
+// MisestimateFactor returns max(actual/planned, planned/actual) on a
+// per-loop basis. Both PlanRows and ActualRows are per-invocation,
+// so we compare them directly — multiplying actuals by Loops would
+// make inner sides of nested loops look misestimated even when the
+// per-invocation estimate was correct. Returns 0 when either figure
+// is missing or zero.
 func (n *Node) MisestimateFactor() float64 {
 	if n == nil || n.NeverExecuted {
 		return 0
 	}
 	planned := float64(n.PlanRows)
-	actual := float64(n.ActualRowsTotal())
+	actual := float64(n.ActualRows)
 	if planned <= 0 || actual <= 0 {
 		return 0
 	}
@@ -66,13 +72,13 @@ func (n *Node) MisestimateFactor() float64 {
 
 // MisestimateDirection returns +1 when the planner underestimated
 // (actual > planned), -1 when it overestimated, 0 when equal or data
-// is missing.
+// is missing. Per-loop comparison, matching MisestimateFactor.
 func (n *Node) MisestimateDirection() int {
 	if n == nil || n.NeverExecuted {
 		return 0
 	}
 	planned := n.PlanRows
-	actual := n.ActualRowsTotal()
+	actual := n.ActualRows
 	if planned == 0 || actual == 0 {
 		return 0
 	}
@@ -147,22 +153,6 @@ func (p *Plan) AllNodes() []*Node {
 	var out []*Node
 	p.Root.Walk(func(n *Node) { out = append(out, n) })
 	return out
-}
-
-// parallelRowMultiplier returns the multiplier to apply to a parallel
-// leaf's per-worker ActualRows to get the total. PostgreSQL reports
-// parallel scan actuals as a per-worker average, and the leader
-// participates too, so total rows = ActualRows × (WorkersLaunched + 1)
-// for parallel-aware scan nodes and 1 otherwise.
-func parallelRowMultiplier(n *Node) int64 {
-	if n == nil || n.WorkersLaunched == 0 {
-		return 1
-	}
-	m := int64(n.WorkersLaunched + 1)
-	if m < 1 {
-		return 1
-	}
-	return m
 }
 
 // loopsOrOne returns n.Loops when positive, else 1. Needed because

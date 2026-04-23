@@ -8,10 +8,21 @@ Two subdirectories of `EXPLAIN (FORMAT JSON)` output used by the
 Captured from the local `docker-compose` Postgres by
 `scripts/capture-fixtures.sh` (`make fixtures`). These reflect actual
 Postgres 17 output shapes against a seeded schema (`customers` +
-`orders`). Regenerating them is deterministic given the same seed data.
+`orders`).
+
+The script uses `SELECT setseed(0.42)` and a fixed reference timestamp,
+so the underlying row data is deterministic. Plan *shape* (node types,
+relations, filters, indexes) therefore stays stable across runs. Plan
+*measurements* — `Actual Total Time`, `Planning Time`, `Total Cost`,
+and row-estimate figures from `ANALYZE`'s internal sampling — will
+vary slightly on each capture, so `git diff` after `make fixtures` is
+expected to show some numeric churn even without any code changes.
 
 If you change the schema or the queries in `capture-fixtures.sh`,
-re-run `make fixtures` and commit the updated JSON.
+re-run `make fixtures` and commit the updated JSON. After a
+regeneration, also re-run
+`go test ./internal/cli -run Golden -update` to refresh the golden
+renderer outputs.
 
 ## `synthetic/`
 

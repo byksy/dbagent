@@ -158,7 +158,6 @@ Parse and render an `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` plan from a file o
 ```
 --plan-file string       path to EXPLAIN JSON file; empty means read from stdin
 --format string          output format: tree (default), table, json
---width int              override terminal width; 0 = auto-detect
 ```
 
 Examples:

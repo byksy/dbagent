@@ -12,7 +12,7 @@ import (
 // renderTable prints the plan as a flat aligned table, one row per
 // node, with the node column indented by depth to retain a sense of
 // hierarchy.
-func renderTable(w io.Writer, p *plan.Plan, s *plan.Summary, _ int) error {
+func renderTable(w io.Writer, p *plan.Plan, s *plan.Summary) error {
 	fmt.Fprintf(w, "Plan (total: %s, planning: %s, execution: %s)\n\n",
 		formatDurationMs(p.TotalTimeMs),
 		formatDurationMs(p.PlanningTimeMs),

@@ -10,7 +10,7 @@
       "Plan Rows": 1,
       "Plan Width": 42,
       "Actual Startup Time": 0.015,
-      "Actual Total Time": 0.016,
+      "Actual Total Time": 0.015,
       "Actual Rows": 1,
       "Actual Loops": 1,
       "Inner Unique": true,
@@ -68,8 +68,8 @@
           "Total Cost": 8.30,
           "Plan Rows": 1,
           "Plan Width": 12,
-          "Actual Startup Time": 0.005,
-          "Actual Total Time": 0.005,
+          "Actual Startup Time": 0.004,
+          "Actual Total Time": 0.004,
           "Actual Rows": 1,
           "Actual Loops": 1,
           "Index Cond": "(id = o.customer_id)",
@@ -99,9 +99,9 @@
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.321,
+    "Planning Time": 0.261,
     "Triggers": [
     ],
-    "Execution Time": 0.038
+    "Execution Time": 0.036
   }
 ]

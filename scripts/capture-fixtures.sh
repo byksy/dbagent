@@ -17,7 +17,7 @@ PSQL=(docker exec -i "$CONTAINER" psql -U "$USER" -d "$DB" -At)
 
 mkdir -p testdata/plans/real
 
-echo "→ setting up demo schema"
+echo "→ setting up demo schema (deterministic seed)"
 "${PSQL[@]}" <<'SQL'
 CREATE TABLE IF NOT EXISTS customers (
     id int PRIMARY KEY,
@@ -28,12 +28,16 @@ CREATE TABLE IF NOT EXISTS orders (
     id int PRIMARY KEY,
     customer_id int REFERENCES customers(id),
     status text,
-    created_at timestamptz DEFAULT now(),
+    created_at timestamptz,
     amount numeric
 );
 CREATE INDEX IF NOT EXISTS customers_region_idx ON customers(region);
 
 TRUNCATE customers, orders CASCADE;
+
+-- Fixed RNG seed and reference epoch so regeneration produces the same
+-- rows (and therefore the same plan shapes) regardless of wall clock.
+SELECT setseed(0.42);
 
 INSERT INTO customers
 SELECT i,
@@ -45,7 +49,7 @@ INSERT INTO orders
 SELECT i,
        (i % 5000) + 1,
        CASE WHEN i % 4 = 0 THEN 'shipped' ELSE 'pending' END,
-       now() - (random() * interval '90 days'),
+       TIMESTAMP '2026-03-01 00:00:00' - (random() * interval '90 days'),
        (random() * 1000)::numeric(10,2)
 FROM generate_series(1, 50000) i;
 
@@ -76,6 +80,6 @@ capture sort_small \
     "SELECT * FROM orders ORDER BY created_at DESC LIMIT 1000"
 
 capture cte_with_join \
-    "WITH recent AS (SELECT * FROM orders WHERE created_at > now() - interval '7 days') SELECT c.name, count(*) FROM recent r JOIN customers c ON c.id = r.customer_id GROUP BY c.name ORDER BY count(*) DESC LIMIT 10"
+    "WITH recent AS (SELECT * FROM orders WHERE created_at > TIMESTAMP '2026-02-21 00:00:00') SELECT c.name, count(*) FROM recent r JOIN customers c ON c.id = r.customer_id GROUP BY c.name ORDER BY count(*) DESC LIMIT 10"
 
 echo "✓ captured $(ls testdata/plans/real/*.json | wc -l | tr -d ' ') fixtures"

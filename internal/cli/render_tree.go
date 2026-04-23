@@ -10,13 +10,13 @@ import (
 
 // renderTree renders a Plan as an indented box-drawing tree followed
 // by a summary block.
-func renderTree(w io.Writer, p *plan.Plan, s *plan.Summary, width int) error {
+func renderTree(w io.Writer, p *plan.Plan, s *plan.Summary) error {
 	fmt.Fprintf(w, "Plan (total: %s, planning: %s, execution: %s)\n\n",
 		formatDurationMs(p.TotalTimeMs),
 		formatDurationMs(p.PlanningTimeMs),
 		formatDurationMs(p.ExecutionTimeMs),
 	)
-	writeNode(w, p.Root, "", true, width)
+	writeNode(w, p.Root, "", true)
 	fmt.Fprintln(w)
 	writeSummary(w, p, s)
 	return nil
@@ -25,7 +25,7 @@ func renderTree(w io.Writer, p *plan.Plan, s *plan.Summary, width int) error {
 // writeNode writes one node and recurses into its children. "prefix"
 // is the continuation characters accumulated from ancestors; "isLast"
 // tells us which junction character to pick for this node.
-func writeNode(w io.Writer, n *plan.Node, prefix string, isLast bool, width int) {
+func writeNode(w io.Writer, n *plan.Node, prefix string, isLast bool) {
 	if n == nil {
 		return
 	}
@@ -62,7 +62,7 @@ func writeNode(w io.Writer, n *plan.Node, prefix string, isLast bool, width int)
 		} else if isLast {
 			nextPrefix = prefix + "    "
 		}
-		writeNode(w, c, nextPrefix, last, width)
+		writeNode(w, c, nextPrefix, last)
 	}
 }
 

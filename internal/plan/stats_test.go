@@ -148,31 +148,39 @@ func TestFilterRemovalRatio(t *testing.T) {
 	}
 }
 
-func TestParallelRowMultiplier(t *testing.T) {
+func TestActualRowsTotal(t *testing.T) {
 	tests := []struct {
-		name            string
-		workersLaunched int
-		want            int64
+		name   string
+		rows   int64
+		loops  int64
+		want   int64
 	}{
-		{"non-parallel", 0, 1},
-		{"two workers", 2, 3}, // 2 workers + leader
-		{"four workers", 4, 5},
+		{"single loop", 42, 1, 42},
+		{"nested loop inner", 10, 1000, 10000},
+		{"parallel scan loops encode workers", 10000, 3, 30000},
+		{"gather already-aggregated output", 30000, 1, 30000},
+		{"never-executed handled upstream returns 0 via zero loops", 0, 0, 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			n := &Node{WorkersLaunched: tt.workersLaunched}
-			if got := parallelRowMultiplier(n); got != tt.want {
-				t.Errorf("multiplier = %d, want %d", got, tt.want)
+			n := &Node{ActualRows: tt.rows, Loops: tt.loops}
+			if got := n.ActualRowsTotal(); got != tt.want {
+				t.Errorf("ActualRowsTotal = %d, want %d", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestActualRowsTotal_Parallel(t *testing.T) {
-	// 10000 per-worker rows × (2 workers + 1 leader) = 30000
-	n := &Node{ActualRows: 10000, Loops: 1, WorkersLaunched: 2}
-	if got := n.ActualRowsTotal(); got != 30000 {
-		t.Errorf("ActualRowsTotal = %d, want 30000", got)
+func TestMisestimate_PerLoop_NotInflatedByLoops(t *testing.T) {
+	// Inner side of a nested loop: planner correctly estimated 10
+	// rows per invocation, and that's exactly what happened — 1000
+	// times. Comparing per-loop figures should yield no misestimate.
+	n := &Node{PlanRows: 10, ActualRows: 10, Loops: 1000}
+	if got := n.MisestimateFactor(); got != 0 && got > 1.001 {
+		t.Errorf("inner nested-loop leaf factor = %v, want ~1 (per-loop comparison)", got)
+	}
+	if got := n.MisestimateDirection(); got != 0 {
+		t.Errorf("direction = %d, want 0 for equal planned/actual", got)
 	}
 }
 

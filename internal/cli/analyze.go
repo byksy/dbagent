@@ -15,7 +15,6 @@ import (
 type analyzeFlags struct {
 	planFile string
 	format   string
-	width    int
 }
 
 // newAnalyzeCmd builds the "analyze" subcommand.
@@ -41,7 +40,6 @@ Examples:
 	}
 	cmd.Flags().StringVar(&f.planFile, "plan-file", "", "path to EXPLAIN JSON file; empty means read from stdin")
 	cmd.Flags().StringVar(&f.format, "format", "tree", "output format: tree|table|json")
-	cmd.Flags().IntVar(&f.width, "width", 0, "override terminal width; 0 = auto-detect")
 	return cmd
 }
 
@@ -71,16 +69,11 @@ func runAnalyze(cmd *cobra.Command, f *analyzeFlags) error {
 	summary := plan.Summarize(p)
 	w := cmd.OutOrStdout()
 
-	width := f.width
-	if width <= 0 {
-		width = renderWidth()
-	}
-
 	switch f.format {
 	case "", "tree":
-		return renderTree(w, p, summary, width)
+		return renderTree(w, p, summary)
 	case "table":
-		return renderTable(w, p, summary, width)
+		return renderTable(w, p, summary)
 	case "json":
 		return renderJSON(w, p, summary)
 	default:
@@ -106,13 +99,3 @@ func openPlanInput(cmd *cobra.Command, path string) (io.Reader, string, func(), 
 	return stdin, "<stdin>", nil, nil
 }
 
-// renderWidth returns the current terminal width or a reasonable
-// fallback. Mirrors terminalWidth() in format.go but is kept separate
-// here so Stage 1's top output isn't pulled in transitively.
-func renderWidth() int {
-	w, _, err := term.GetSize(int(os.Stdout.Fd()))
-	if err != nil || w <= 0 {
-		return 120
-	}
-	return w
-}
