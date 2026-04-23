@@ -1,0 +1,26 @@
+# Binaries
+bin/
+dbagent
+*.exe
+
+# Test artifacts
+*.test
+coverage.out
+coverage.html
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Local config accidentally left at repo root
+/config.yaml
+.env
+.env.local
+
+stage-1.md
+stage-2.md
+stage-3.md
+CLAUDE.md

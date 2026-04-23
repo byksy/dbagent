@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dbagent_dev
+    ports:
+      - "5432:5432"
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+    volumes:
+      - dbagent_pgdata:/var/lib/postgresql/data
+
+volumes:
+  dbagent_pgdata:
