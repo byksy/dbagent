@@ -36,17 +36,23 @@ func (r *MissingIndexOnFilter) Check(p *plan.Plan) []Finding {
 		if n.NeverExecuted || !missingIndexApplies(n) {
 			continue
 		}
-		removed := n.RowsRemovedByFilter
-		kept := n.ActualRows
-		if kept*int64(missingIndexRemovalFactor) >= removed {
+		// The ratio gate stays on per-loop figures (the filter's
+		// selectivity per invocation is what matters for "index would
+		// help"), but volume gates and user-facing numbers use
+		// loop-scaled totals so parallel / nested-loop inner scans
+		// don't under-report.
+		removedPerLoop := n.RowsRemovedByFilter
+		keptPerLoop := n.ActualRows
+		if keptPerLoop*int64(missingIndexRemovalFactor) >= removedPerLoop {
 			continue
 		}
 		loops := n.Loops
 		if loops < 1 {
 			loops = 1
 		}
-		weighted := loops * removed
-		if weighted < missingIndexMinWeightedRows {
+		removedTotal := removedPerLoop * loops
+		keptTotal := keptPerLoop * loops
+		if removedTotal < missingIndexMinWeightedRows {
 			continue
 		}
 
@@ -54,20 +60,20 @@ func (r *MissingIndexOnFilter) Check(p *plan.Plan) []Finding {
 		cols := ExtractFilterColumns(n.Filter)
 
 		sev := SeverityWarning
-		if weighted > missingIndexCriticalRows {
+		if removedTotal > missingIndexCriticalRows {
 			sev = SeverityCritical
 		}
 
 		ratio := 1.0
-		if kept+removed > 0 {
-			ratio = float64(removed) / float64(kept+removed)
+		if keptTotal+removedTotal > 0 {
+			ratio = float64(removedTotal) / float64(keptTotal+removedTotal)
 		}
 		msg := fmt.Sprintf("Filter removes %.0f%% of rows scanned (%d rows). Consider an index to push the predicate down.",
-			ratio*100, removed)
+			ratio*100, removedTotal)
 
 		ev := map[string]any{
-			"rows_removed":    removed,
-			"rows_kept":       kept,
+			"rows_removed":    removedTotal,
+			"rows_kept":       keptTotal,
 			"loops":           loops,
 			"filter":          n.Filter,
 			"parsed_columns":  cols,

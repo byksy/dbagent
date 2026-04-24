@@ -36,23 +36,28 @@ func (r *FilterRemovalRatio) Check(p *plan.Plan) []Finding {
 		if n.NeverExecuted || !isFilterableScan(n.NodeType) {
 			continue
 		}
-		removed := n.RowsRemovedByFilter
-		if removed < filterRemovalMinRows {
+		// PostgreSQL reports both Actual Rows and Rows Removed by
+		// Filter on a per-loop basis (per-worker-average for parallel
+		// scans). Scale both by Loops so the ratio and the volume
+		// gates reflect the real work done, not one invocation.
+		loops := n.Loops
+		if loops < 1 {
+			loops = 1
+		}
+		removedTotal := n.RowsRemovedByFilter * loops
+		keptTotal := n.ActualRows * loops
+		if removedTotal < filterRemovalMinRows {
 			continue
 		}
-		kept := n.ActualRows
-		if n.Loops > 1 {
-			kept = kept * n.Loops
-		}
-		total := kept + removed
+		total := keptTotal + removedTotal
 		if total == 0 {
 			continue
 		}
-		ratio := float64(removed) / float64(total)
+		ratio := float64(removedTotal) / float64(total)
 
 		var sev Severity
 		switch {
-		case ratio >= filterRemovalCriticalRatio && removed >= filterRemovalCriticalRows:
+		case ratio >= filterRemovalCriticalRatio && removedTotal >= filterRemovalCriticalRows:
 			sev = SeverityCritical
 		case ratio >= filterRemovalWarningRatio:
 			sev = SeverityWarning
@@ -63,10 +68,10 @@ func (r *FilterRemovalRatio) Check(p *plan.Plan) []Finding {
 		}
 
 		msg := fmt.Sprintf("%.0f%% of rows read are discarded by filter (%d rows removed, %d kept).",
-			ratio*100, removed, kept)
+			ratio*100, removedTotal, keptTotal)
 		out = append(out, newFinding(r, n.ID, sev, msg, map[string]any{
-			"rows_removed":  removed,
-			"rows_kept":     kept,
+			"rows_removed":  removedTotal,
+			"rows_kept":     keptTotal,
 			"removal_ratio": ratio,
 			"filter":        n.Filter,
 		}))

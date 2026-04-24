@@ -21,6 +21,12 @@ func TestExtractFilterColumns(t *testing.T) {
 		{"((tags @> '{urgent}'::text[]) OR (priority > 5))", []string{"tags", "priority"}},
 		{"(complex_function(a, b) = 0)", []string{}},
 		{"", []string{}},
+		// Regressions for the function-prefix false positive: columns
+		// whose names start with recognised function words must still
+		// be captured whole, not split into "prefix" + "_rest".
+		{"(lower_col = 1)", []string{"lower_col"}},
+		{"(upper_case_flag = true)", []string{"upper_case_flag"}},
+		{"(trim_ws_enabled = false)", []string{"trim_ws_enabled"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.filter, func(t *testing.T) {

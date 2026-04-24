@@ -43,4 +43,25 @@ func TestMissingIndexOnFilter(t *testing.T) {
 			t.Errorf("got %d findings, want 0: %+v", len(f), f)
 		}
 	})
+
+	// Regression: inner scan of a nested loop reports per-loop counts;
+	// message and evidence must report the loop-scaled total so they
+	// don't undercount versus the severity calculation.
+	t.Run("reports loop-scaled totals for nested-loop inner", func(t *testing.T) {
+		p := loadRuleFixture(t, "missing_index_on_filter", "positive_nested_loop.json")
+		f := rule.Check(p)
+		if len(f) != 1 {
+			t.Fatalf("got %d findings, want 1", len(f))
+		}
+		// 500 per-loop × 1000 loops = 500,000 total removals.
+		if got := f[0].Evidence["rows_removed"].(int64); got != 500_000 {
+			t.Errorf("rows_removed = %d, want 500000 (loop-scaled)", got)
+		}
+		if !strings.Contains(f[0].Message, "500000 rows") {
+			t.Errorf("message should report 500000 rows (loop-scaled): %q", f[0].Message)
+		}
+		if f[0].Severity != SeverityCritical {
+			t.Errorf("severity = %v, want Critical", f[0].Severity)
+		}
+	})
 }

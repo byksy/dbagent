@@ -59,19 +59,19 @@ func splitPredicates(filter string) []string {
 	return strings.Split(s, "\x01")
 }
 
-// predicateRE matches a single column-name-on-the-left predicate. The
-// named group "col" is the column. We allow optional surrounding
-// parens and an optional ::type cast after the column. The operator
-// list covers comparisons, IS [NOT] NULL, IN/ANY, and array ops.
+// predicateRE matches a single direct column-name-on-the-left
+// predicate. Function calls such as lower(col) are handled separately
+// by singleArgCallRE — we do NOT try to optionally match a function
+// prefix here because that misfires on column names that happen to
+// start with a recognised function word (e.g., "lower_col" would be
+// split into "lower" + "_col").
 var predicateRE = regexp.MustCompile(`(?i)` +
 	`\(*\s*` + // optional leading parens/space
-	`(?:lower|upper|trim|btrim|length)?` + // common wrapping funcs with single arg
-	`\(*\s*` +
 	`(?:"?(?P<col>[A-Za-z_][A-Za-z0-9_]*)"?)` + // column identifier (quoted or not)
 	`\s*\)*` + // close wrapping paren
 	`(?:::[A-Za-z_][A-Za-z0-9_]*(?:\[\])?)?` + // optional ::type
 	`\s*\)*\s*` + // close outer paren
-	`(?:=|<|>|<=|>=|<>|!=|IS\s+NULL|IS\s+NOT\s+NULL|IN\s|=\s*ANY|@>|<@|\|\||@@)`)
+	`(?:IS\s+NOT\s+NULL|IS\s+NULL|<=|>=|<>|!=|=\s*ANY|=|<|>|IN\s|@>|<@|\|\||@@)`)
 
 // singleArgCallRE detects "func(col)" with exactly one identifier
 // argument so we can still pluck the column out. Two-arg function
