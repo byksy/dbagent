@@ -117,15 +117,13 @@ func FetchWorkload(ctx context.Context, pool *pgxpool.Pool, opts WorkloadOptions
 	return out, meta, nil
 }
 
-// workloadSQL builds the pg_stat_statements select statement. The
-// SinceMinutes filter is expressed via a server-side cast so stats
-// applied before the reset point are invisible to us — no client-
-// side filtering is needed.
+// workloadSQL builds the pg_stat_statements select statement.
+// SinceMinutes is intentionally not translated into a WHERE clause:
+// pg_stat_statements has no per-statement "last_seen" column, so a
+// real rolling filter isn't possible at the SQL level. The option
+// is accepted for forward compatibility so callers can grow the
+// filter once PostgreSQL exposes a suitable timestamp.
 func workloadSQL(opts WorkloadOptions) string {
-	// Note: pg_stat_statements doesn't actually carry a "last_seen"
-	// timestamp, so SinceMinutes is a no-op at the SQL level. We
-	// keep the option wired so callers have a single place to grow
-	// the filter once PostgreSQL exposes one.
 	return `
 SELECT
     queryid,

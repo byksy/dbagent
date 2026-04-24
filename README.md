@@ -141,7 +141,7 @@ Print the top queries from `pg_stat_statements`.
 
 ```
 --limit int              number of queries to show (default: from config)
---order-by string        order by: total|mean|calls (default: from config)
+--order-by string        order by: total|mean|calls|io|cache (default: from config)
 --include-system         include pg_catalog / SET / SHOW / VACUUM / ANALYZE queries (excluded by default)
 -v, --verbose            add rows, cache hit%, and blocks-read columns
 ```

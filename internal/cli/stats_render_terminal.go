@@ -302,9 +302,11 @@ func wrapHanging(s string, width int) []string {
 	return out
 }
 
-// truncateStatsText collapses whitespace and cuts to width runes.
-// Mirrors the helper in format.go but avoids reaching into Stage 1
-// code directly so analyze remains untouched.
+// truncateStatsText cuts q to width display runes, appending "…"
+// when truncated. Whitespace normalisation happens upstream in
+// normaliseWhitespace (stats.QueryGroup.QueryText), so this helper
+// only needs to worry about length. Kept local so analyze remains
+// untouched.
 func truncateStatsText(q string, width int) string {
 	if width <= 1 {
 		return "…"

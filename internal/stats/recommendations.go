@@ -153,13 +153,14 @@ func recR3LowOverallCache(ws *WorkloadStats) *Recommendation {
 	if ws.CacheHitRatio < r3CriticalCache {
 		sev = rules.SeverityCritical
 	}
-	return &[]Recommendation{mkRec("low_overall_cache_hit", sev,
+	rec := mkRec("low_overall_cache_hit", sev,
 		"Overall cache hit ratio is below target",
 		fmt.Sprintf("Cache hit ratio is %.1f%% — below the 95%% target typical of healthy workloads. Consider increasing shared_buffers or adding indexes.", ws.CacheHitRatio*100),
 		map[string]any{
 			"cache_hit_ratio": ws.CacheHitRatio,
 		},
-	)}[0]
+	)
+	return &rec
 }
 
 // recR5TrivialFrequent flags hot, cheap queries — classic
@@ -239,7 +240,7 @@ func recR7StatsRecentlyReset(ws *WorkloadStats, now time.Time) *Recommendation {
 	if age >= r7RecentThreshold {
 		return nil
 	}
-	return &[]Recommendation{mkRec("stats_recently_reset", rules.SeverityInfo,
+	rec := mkRec("stats_recently_reset", rules.SeverityInfo,
 		"pg_stat_statements was reset recently",
 		fmt.Sprintf("pg_stat_statements was reset %s ago. Current data may not represent a full workload cycle.",
 			age.Round(time.Second)),
@@ -247,7 +248,8 @@ func recR7StatsRecentlyReset(ws *WorkloadStats, now time.Time) *Recommendation {
 			"stats_since": ws.Meta.StatsSince,
 			"age_seconds": age.Seconds(),
 		},
-	)}[0]
+	)
+	return &rec
 }
 
 // recR8NoPgStatInfo alerts users on older PostgreSQL where the
@@ -268,13 +270,14 @@ func recR8NoPgStatInfo(ws *WorkloadStats) *Recommendation {
 	if majorAtLeast(ws.Meta.ServerVersion, 14) {
 		return nil
 	}
-	return &[]Recommendation{mkRec("no_pg_stat_statements_info", rules.SeverityInfo,
+	rec := mkRec("no_pg_stat_statements_info", rules.SeverityInfo,
 		"pg_stat_statements_info not available",
 		fmt.Sprintf("Running on PostgreSQL %s, which doesn't expose pg_stat_statements_info. Stats reset time unknown; interpret accordingly.", ws.Meta.ServerVersion),
 		map[string]any{
 			"server_version": ws.Meta.ServerVersion,
 		},
-	)}[0]
+	)
+	return &rec
 }
 
 // majorAtLeast extracts the major version number from a "17.2"-ish

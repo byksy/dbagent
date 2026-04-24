@@ -38,7 +38,7 @@ and hands them to `stats.ComputeFromRows`.
 
 - `small_workload.json` — 10 queries, mixed read/write, healthy
   cache (used for the default golden test).
-- `heavy_read_workload.json` — 20 queries, 95% reads, triggers the
-  write-heavy negative path.
-- `mixed_workload.json` — 30 queries, balanced, used to exercise
+- `heavy_read_workload.json` — 10 queries, overwhelmingly reads,
+  used to exercise the write-heavy negative path.
+- `mixed_workload.json` — 10 queries, balanced, used to exercise
   every section of the rendered output.
