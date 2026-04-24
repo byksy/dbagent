@@ -9,17 +9,13 @@ Summary
   Biggest row misestimate:   [2] Seq Scan on orders — planned 12,448, actual 100 (124.5× over)
 
 Findings
-  WARNING   [2]
+  WARNING   [2] Seq Scan on orders
             └─ row_misestimate
                Planner estimated 12448 rows, actual is 100 (124.5× over).
                Suggested: ANALYZE orders;
 
-  INFO      [2]
+  INFO      [2] Seq Scan on orders
             └─ filter_removal_ratio
                75% of rows read are discarded by filter (300 rows removed, 100 kept).
 
-  INFO      plan
-            └─ planning_vs_execution
-               Planning (0.1ms) exceeds execution (0.0ms). Consider PREPARE/EXECUTE for frequent, fast queries.
-
-3 findings (1 warning, 2 info)
+2 findings (1 warning, 1 info)

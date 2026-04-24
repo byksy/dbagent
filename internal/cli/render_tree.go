@@ -24,7 +24,7 @@ func renderTree(w io.Writer, p *plan.Plan, s *plan.Summary, findings []rules.Fin
 	writeSummary(w, p, s)
 	if len(findings) > 0 {
 		fmt.Fprintln(w)
-		_ = formatFindingsSection(w, findings)
+		_ = formatFindingsSection(w, p, findings)
 	}
 	return nil
 }
@@ -79,31 +79,39 @@ func writeNode(w io.Writer, n *plan.Node, prefix string, isLast bool, byNode map
 	}
 }
 
-// nodeHeader returns the one-line summary for a node.
+// nodeHeader returns the one-line tree-line summary for a node,
+// including the id-prefixed label and execution stats. Shares label
+// formatting with the summary and Findings section via nodeLabel.
 func nodeHeader(n *plan.Node) string {
-	name := n.NodeType.String()
-	if n.NodeType == plan.NodeTypeUnknown && n.RawNodeType != "" {
-		name = n.RawNodeType
-	}
-	target := ""
-	switch {
-	case n.RelationName != "" && n.Alias != "" && n.RelationName != n.Alias:
-		target = fmt.Sprintf(" on %s %s", n.RelationName, n.Alias)
-	case n.RelationName != "":
-		target = fmt.Sprintf(" on %s", n.RelationName)
-	case n.Alias != "" && n.NodeType == plan.NodeTypeCTEScan:
-		target = fmt.Sprintf(" on %s", n.Alias)
-	}
-
 	if n.NeverExecuted {
-		return fmt.Sprintf("[%d] %s%s  (never executed)", n.ID, name, target)
+		return fmt.Sprintf("[%d] %s  (never executed)", n.ID, nodeLabel(n))
 	}
-	return fmt.Sprintf("[%d] %s%s  rows=%s  time=%s  loops=%s",
-		n.ID, name, target,
+	return fmt.Sprintf("[%d] %s  rows=%s  time=%s  loops=%s",
+		n.ID, nodeLabel(n),
 		formatInt(n.ActualRowsTotal()),
 		formatDurationMs(n.InclusiveTimeMs()),
 		formatInt(n.Loops),
 	)
+}
+
+// nodeLabel returns the type-and-relation label for a node: e.g.
+// "Seq Scan on orders o", "Hash Join", "Limit". No ID, no stats.
+// Shared between the tree header, summary bullets, and the Findings
+// section so formatting stays consistent across renderers.
+func nodeLabel(n *plan.Node) string {
+	name := n.NodeType.String()
+	if n.NodeType == plan.NodeTypeUnknown && n.RawNodeType != "" {
+		name = n.RawNodeType
+	}
+	switch {
+	case n.RelationName != "" && n.Alias != "" && n.RelationName != n.Alias:
+		return fmt.Sprintf("%s on %s %s", name, n.RelationName, n.Alias)
+	case n.RelationName != "":
+		return fmt.Sprintf("%s on %s", name, n.RelationName)
+	case n.Alias != "" && n.NodeType == plan.NodeTypeCTEScan:
+		return fmt.Sprintf("%s on %s", name, n.Alias)
+	}
+	return name
 }
 
 // nodeDetails returns the zero-or-more detail lines that follow the
@@ -201,7 +209,7 @@ func writeSummary(w io.Writer, p *plan.Plan, s *plan.Summary) {
 			pct = n.ExclusiveTimeMs() / p.TotalTimeMs * 100
 		}
 		fmt.Fprintf(w, "  Slowest node (exclusive):  [%d] %s — %s (%.0f%% of total)\n",
-			n.ID, nodeShortName(n), formatDurationMs(n.ExclusiveTimeMs()), pct)
+			n.ID, nodeLabel(n), formatDurationMs(n.ExclusiveTimeMs()), pct)
 	}
 	if n := s.BiggestMisestimate; n != nil {
 		dir := "over"
@@ -209,7 +217,7 @@ func writeSummary(w io.Writer, p *plan.Plan, s *plan.Summary) {
 			dir = "under"
 		}
 		fmt.Fprintf(w, "  Biggest row misestimate:   [%d] %s — planned %s, actual %s (%.1f× %s)\n",
-			n.ID, nodeShortName(n),
+			n.ID, nodeLabel(n),
 			formatInt(n.PlanRows), formatInt(n.ActualRowsTotal()),
 			n.MisestimateFactor(), dir)
 	}
@@ -221,24 +229,8 @@ func writeSummary(w io.Writer, p *plan.Plan, s *plan.Summary) {
 			keptPct = float64(kept) / float64(total) * 100
 		}
 		fmt.Fprintf(w, "  Worst filter ratio:        [%d] %s — %.0f%% rows kept (%s removed)\n",
-			n.ID, nodeShortName(n), keptPct, formatInt(n.RowsRemovedByFilter))
+			n.ID, nodeLabel(n), keptPct, formatInt(n.RowsRemovedByFilter))
 	}
-}
-
-// nodeShortName is "NodeType on relation" without IDs or rows — used
-// only in the summary block.
-func nodeShortName(n *plan.Node) string {
-	name := n.NodeType.String()
-	if n.NodeType == plan.NodeTypeUnknown && n.RawNodeType != "" {
-		name = n.RawNodeType
-	}
-	if n.RelationName != "" && n.Alias != "" && n.RelationName != n.Alias {
-		return fmt.Sprintf("%s on %s %s", name, n.RelationName, n.Alias)
-	}
-	if n.RelationName != "" {
-		return fmt.Sprintf("%s on %s", name, n.RelationName)
-	}
-	return name
 }
 
 // formatDurationMs formats a millisecond value with readable units.

@@ -9,15 +9,15 @@ Summary
   Worst filter ratio:        [1] Seq Scan on rule_orders — 1% rows kept (495,000 removed)
 
 Findings
-  CRITICAL  [1]
+  CRITICAL  [1] Seq Scan on rule_orders
             └─ filter_removal_ratio
                99% of rows read are discarded by filter (495000 rows removed, 5000 kept).
 
-  CRITICAL  [1]
+  CRITICAL  [1] Seq Scan on rule_orders
             └─ hot_node
                This node accounts for 96% of total query time (120.0ms of 125.3ms).
 
-  CRITICAL  [1]
+  CRITICAL  [1] Seq Scan on rule_orders
             └─ missing_index_on_filter
                Filter removes 99% of rows scanned (495000 rows). Consider an index to push the predicate down.
                Suggested: CREATE INDEX ON rule_orders (status);

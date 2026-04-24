@@ -6,10 +6,17 @@ import (
 	"github.com/byksy/dbagent/internal/plan"
 )
 
-// planningVsExecutionMaxExecMs: the rule only makes sense for very
-// fast queries — for anything slower, planning time is a rounding
-// error, not a target for PREPARE.
-const planningVsExecutionMaxExecMs = 10.0
+const (
+	// planningVsExecutionMaxExecMs: the rule only makes sense for very
+	// fast queries — for anything slower, planning time is a rounding
+	// error, not a target for PREPARE.
+	planningVsExecutionMaxExecMs = 10.0
+
+	// planningVsExecutionMinPlanMs: below this threshold the "planning
+	// wins" observation is noise — a 0.3ms plan vs 0.1ms execution is
+	// not worth a PREPARE recommendation.
+	planningVsExecutionMinPlanMs = 5.0
+)
 
 // PlanningVsExecution flags queries where planning takes longer than
 // execution. For frequently-run short queries, PREPARE/EXECUTE can
@@ -25,6 +32,9 @@ func (r *PlanningVsExecution) Check(p *plan.Plan) []Finding {
 		return nil
 	}
 	if p.PlanningTimeMs <= 0 || p.ExecutionTimeMs <= 0 {
+		return nil
+	}
+	if p.PlanningTimeMs <= planningVsExecutionMinPlanMs {
 		return nil
 	}
 	if p.PlanningTimeMs <= p.ExecutionTimeMs {

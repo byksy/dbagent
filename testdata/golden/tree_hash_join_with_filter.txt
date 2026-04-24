@@ -2,13 +2,13 @@ Plan (total: 3.4ms, planning: 0.3ms, execution: 3.1ms)
 
 [1] Limit  rows=42  time=3.1ms  loops=1
     buffers: shared hit=402 read=0
-└─ [2] Sort  rows=42  time=3.1ms  loops=1  ℹ
+└─ [2] Sort  rows=42  time=3.1ms  loops=1
     sort_key=o.created_at DESC  method=top-N heapsort  memory=30kB
     buffers: shared hit=402 read=0
     └─ [3] Hash Join  rows=4,160  time=2.9ms  loops=1
         hash_cond=(o.customer_id = c.id)
         buffers: shared hit=399 read=0
-        ├─ [4] Seq Scan on orders o  rows=12,500  time=1.9ms  loops=1  ℹ ⚠
+        ├─ [4] Seq Scan on orders o  rows=12,500  time=1.9ms  loops=1  ℹ
         │   filter=(status = 'shipped'::text)  filter_removed=37,500
         │   buffers: shared hit=368 read=0
         └─ [5] Hash  rows=1,666  time=0.2ms  loops=1
@@ -24,16 +24,8 @@ Summary
   Biggest row misestimate:   [2] Sort — planned 4,148, actual 42 (98.8× over)
 
 Findings
-  WARNING   [4]
-            └─ hot_node
-               This node accounts for 56% of total query time (1.9ms of 3.4ms).
-
-  INFO      [4]
+  INFO      [4] Seq Scan on orders o
             └─ filter_removal_ratio
                75% of rows read are discarded by filter (37500 rows removed, 12500 kept).
 
-  INFO      [2]
-            └─ row_misestimate
-               Planner estimated 4148 rows, actual is 42 (98.8× over).
-
-3 findings (1 warning, 2 info)
+1 findings (1 info)
