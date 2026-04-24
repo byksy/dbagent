@@ -5,11 +5,11 @@
       "Parallel Aware": false,
       "Async Capable": false,
       "Startup Cost": 1000.00,
-      "Total Cost": 9094.62,
-      "Plan Rows": 5579,
+      "Total Cost": 9128.62,
+      "Plan Rows": 5919,
       "Plan Width": 30,
-      "Actual Startup Time": 0.105,
-      "Actual Total Time": 11.099,
+      "Actual Startup Time": 0.137,
+      "Actual Total Time": 14.065,
       "Actual Rows": 105000,
       "Actual Loops": 1,
       "Workers Planned": 2,
@@ -35,10 +35,10 @@
           "Alias": "rule_orders",
           "Startup Cost": 0.00,
           "Total Cost": 7536.72,
-          "Plan Rows": 2325,
+          "Plan Rows": 2466,
           "Plan Width": 30,
-          "Actual Startup Time": 0.009,
-          "Actual Total Time": 8.292,
+          "Actual Startup Time": 0.023,
+          "Actual Total Time": 10.933,
           "Actual Rows": 35000,
           "Actual Loops": 3,
           "Filter": "(status = 'shipped'::text)",
@@ -70,9 +70,9 @@
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.121,
+    "Planning Time": 0.137,
     "Triggers": [
     ],
-    "Execution Time": 13.341
+    "Execution Time": 16.303
   }
 ]
