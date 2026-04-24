@@ -89,8 +89,13 @@ func TestInclusiveTime_ParallelChild_NoLoopMultiplier(t *testing.T) {
 		t.Errorf("parallel scan exclusive = %v, want 35.1", got)
 	}
 	// Gather itself is not a parallel child — its loop count still
-	// multiplies (trivially by 1 here), and the leaf's inclusive
-	// should no longer exceed its parent's inclusive.
+	// multiplies (trivially by 1 here). We deliberately use numbers
+	// that match the original bug-report fixture (Gather=15.3ms,
+	// scan=35.1ms) so the pre-fix behavior (scan showing 105.3ms
+	// and crossing 100% of plan time) is exactly what this test
+	// would have detected. In a real plan Gather would be ≥ child
+	// wall-clock; TestInclusiveTime_SerialLoopsStillMultiply covers
+	// that arithmetic path separately.
 	if got := gather.InclusiveTimeMs(); !closeEnough(got, 15.3) {
 		t.Errorf("gather inclusive = %v, want 15.3", got)
 	}

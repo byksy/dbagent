@@ -50,7 +50,11 @@ func (r *MissingIndexOnFilter) Check(ctx *RuleContext) []Finding {
 		// don't under-report.
 		removedPerLoop := n.RowsRemovedByFilter
 		keptPerLoop := n.ActualRows
-		if keptPerLoop*int64(missingIndexRemovalFactor) >= removedPerLoop {
+		// Fire when at least four times the kept rows were removed
+		// (>= 80% discarded). Strict > would silently let filters
+		// sitting at exactly 80% — a common round-number threshold
+		// in tests and real workloads — escape the rule.
+		if keptPerLoop*int64(missingIndexRemovalFactor) > removedPerLoop {
 			continue
 		}
 		loops := n.Loops

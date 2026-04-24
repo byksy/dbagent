@@ -121,11 +121,19 @@ func runAnalyze(cmd *cobra.Command, f *analyzeFlags) error {
 	if err != nil {
 		return err
 	}
+	// JSON mode must emit valid JSON only; the banner goes to stderr
+	// there so shell pipelines like `dbagent analyze ... | jq` keep
+	// working. Tree and table modes render the banner inline at the
+	// top of stdout because that's where operators see it.
 	if banner != "" {
-		fmt.Fprintln(w, banner)
-		fmt.Fprintln(w)
+		switch f.format {
+		case "json":
+			fmt.Fprintln(stderr, banner)
+		default:
+			fmt.Fprintln(w, banner)
+			fmt.Fprintln(w)
+		}
 	}
-	_ = stderr // reserved for future non-fatal warnings
 
 	summary := plan.Summarize(p)
 	findings := rules.Run(&rules.RuleContext{Plan: p, Schema: sch}, rules.Default())
