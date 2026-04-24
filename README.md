@@ -18,7 +18,7 @@ The tool is being built in stages. Upcoming work includes schema introspection (
 **Users:**
 
 ```bash
-go install github.com/byksy/dbagent/cmd/dbagent@v0.2.0
+go install github.com/byksy/dbagent/cmd/dbagent@v0.3.0
 ```
 
 (Until the module is mature, pin to a specific tag. `@latest` will resolve
