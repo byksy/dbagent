@@ -21,11 +21,20 @@ type Explanation struct {
 // explanations is populated at init() from the embedded YAML. A
 // parse failure here fails the whole binary — explanations are
 // data the build depends on, so late detection isn't acceptable.
-var explanations map[string]Explanation
+// Stored as *Explanation so LookupExplanation can return a stable
+// pointer into package state instead of allocating a fresh copy on
+// every call.
+var explanations map[string]*Explanation
 
 func init() {
-	if err := yaml.Unmarshal(explanationsRaw, &explanations); err != nil {
+	var raw map[string]Explanation
+	if err := yaml.Unmarshal(explanationsRaw, &raw); err != nil {
 		panic(fmt.Sprintf("failed to parse embedded explanations.yaml: %v", err))
+	}
+	explanations = make(map[string]*Explanation, len(raw))
+	for k := range raw {
+		e := raw[k] // avoid aliasing the loop variable's single address
+		explanations[k] = &e
 	}
 }
 
@@ -34,19 +43,17 @@ func init() {
 // the TestExplanations_AllRulesCovered test in this package fails the
 // build if a rule ships without an explanation.
 func LookupExplanation(ruleID string) *Explanation {
-	if e, ok := explanations[ruleID]; ok {
-		return &e
-	}
-	return nil
+	return explanations[ruleID]
 }
 
-// AllExplanations returns a copy of the full map. Used by tests and
-// reserved for the Stage 9 LLM layer so callers can seed prompts
-// without reaching into package-private state.
+// AllExplanations returns a copy of the full map (by value, so the
+// Stage 9 LLM layer and tests can iterate without risking mutation
+// of package state). Used sparingly — lookups should go through
+// LookupExplanation.
 func AllExplanations() map[string]Explanation {
 	out := make(map[string]Explanation, len(explanations))
 	for k, v := range explanations {
-		out[k] = v
+		out[k] = *v
 	}
 	return out
 }

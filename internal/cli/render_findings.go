@@ -135,10 +135,11 @@ func writeNodeFindings(w io.Writer, nodeID int, findings []rules.Finding, idx ma
 		return
 	}
 	target := nodeTarget(nodeID, idx)
-	// Indent matches the column under the finding's message body —
-	// "  [SEV]     " is 12 characters, so 12 spaces keeps the
-	// explanation flush with the existing "               " text.
-	const explainIndent = "            "
+	// explainIndent aligns with the finding's message / Suggested
+	// body, which is written with 15 leading spaces (see the Fprintf
+	// calls below). Matching that column keeps "What happened" flush
+	// under the one-liner rather than hanging off to the left.
+	const explainIndent = "               "
 	for _, f := range findings {
 		tag := strings.ToUpper(f.Severity.String())
 		fmt.Fprintf(w, "  %-8s  %s\n", tag, target)
