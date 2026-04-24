@@ -18,7 +18,7 @@ The tool is being built in stages. Upcoming work includes an expanded rule set, 
 **Users:**
 
 ```bash
-go install github.com/byksy/dbagent/cmd/dbagent@v0.5.6
+go install github.com/byksy/dbagent/cmd/dbagent@v0.5.7
 ```
 
 (Until the module is mature, pin to a specific tag. `@latest` will resolve
@@ -326,7 +326,7 @@ good config. Interactive runs prompt before overwriting.
 Print version and runtime info:
 
 ```
-dbagent v0.5.6
+dbagent v0.5.7
 go1.22.x linux/amd64
 ```
 
