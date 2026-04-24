@@ -25,10 +25,11 @@ func (*BitmapAndComposite) ID() string         { return "bitmap_and_composite" }
 func (*BitmapAndComposite) Name() string       { return "BitmapAnd → composite index" }
 func (*BitmapAndComposite) Category() Category { return CategoryPrescriptive }
 
-func (r *BitmapAndComposite) Check(p *plan.Plan) []Finding {
-	if p == nil || p.Root == nil {
+func (r *BitmapAndComposite) Check(ctx *RuleContext) []Finding {
+	if ctx == nil || ctx.Plan == nil || ctx.Plan.Root == nil {
 		return nil
 	}
+	p := ctx.Plan
 	var out []Finding
 	for _, n := range p.AllNodes() {
 		if n.NeverExecuted || n.RawNodeType != bitmapAndRawType {
@@ -72,6 +73,20 @@ func (r *BitmapAndComposite) Check(p *plan.Plan) []Finding {
 			cols = append(cols, s.col)
 			if s.name != "" {
 				names = append(names, s.name)
+			}
+		}
+
+		// Schema-aware suppression: if a composite index already
+		// covers these columns, the planner simply chose BitmapAnd
+		// anyway (usually because of statistics), and suggesting
+		// another composite would be wrong.
+		if ctx.Schema != nil {
+			tableFQN := relation
+			if n.Schema != "" {
+				tableFQN = n.Schema + "." + relation
+			}
+			if ctx.Schema.HasIndexOn(tableFQN, cols) {
+				continue
 			}
 		}
 

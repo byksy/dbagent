@@ -7,7 +7,7 @@ func TestPlanningVsExecution(t *testing.T) {
 
 	t.Run("info when planning > execution and execution < 10ms", func(t *testing.T) {
 		p := loadRuleFixture(t, "planning_vs_execution", "positive.json")
-		f := rule.Check(p)
+		f := rule.Check(newContext(p))
 		if len(f) != 1 {
 			t.Fatalf("got %d findings, want 1: %+v", len(f), f)
 		}
@@ -21,7 +21,7 @@ func TestPlanningVsExecution(t *testing.T) {
 
 	t.Run("no finding when execution is slow", func(t *testing.T) {
 		p := loadRuleFixture(t, "planning_vs_execution", "negative.json")
-		if f := rule.Check(p); len(f) != 0 {
+		if f := rule.Check(newContext(p)); len(f) != 0 {
 			t.Errorf("got %d findings, want 0", len(f))
 		}
 	})

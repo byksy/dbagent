@@ -3,8 +3,6 @@ package rules
 import (
 	"sort"
 	"testing"
-
-	"github.com/byksy/dbagent/internal/plan"
 )
 
 func TestSeverity_String(t *testing.T) {
@@ -68,6 +66,7 @@ func TestDefault_AllRulesPresent(t *testing.T) {
 	want := []string{
 		"bitmap_and_composite",
 		"filter_removal_ratio",
+		"fk_missing_index",
 		"hot_node",
 		"missing_index_on_filter",
 		"planning_vs_execution",
@@ -107,10 +106,10 @@ type fakeRule struct {
 	findings []Finding
 }
 
-func (f *fakeRule) ID() string                 { return f.id }
-func (f *fakeRule) Name() string               { return f.name }
-func (f *fakeRule) Category() Category         { return CategoryDiagnostic }
-func (f *fakeRule) Check(_ *plan.Plan) []Finding { return f.findings }
+func (f *fakeRule) ID() string                    { return f.id }
+func (f *fakeRule) Name() string                  { return f.name }
+func (f *fakeRule) Category() Category            { return CategoryDiagnostic }
+func (f *fakeRule) Check(_ *RuleContext) []Finding { return f.findings }
 
 func TestRun_Ordering(t *testing.T) {
 	// Craft three rules that emit findings at different severities and
@@ -127,7 +126,7 @@ func TestRun_Ordering(t *testing.T) {
 	c := &fakeRule{id: "c_rule", name: "C", findings: []Finding{
 		{RuleID: "c_rule", Severity: SeverityWarning, NodeID: 2},
 	}}
-	out := Run(nil, []Rule{a, b, c})
+	out := Run(&RuleContext{}, []Rule{a, b, c})
 	want := []struct {
 		sev    Severity
 		nodeID int

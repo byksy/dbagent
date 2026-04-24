@@ -10,7 +10,7 @@ func TestSortSpilled(t *testing.T) {
 
 	t.Run("warning on disk-spilled sort under 1GB", func(t *testing.T) {
 		p := loadRuleFixture(t, "sort_spilled", "positive.json")
-		f := rule.Check(p)
+		f := rule.Check(newContext(p))
 		if len(f) != 1 {
 			t.Fatalf("got %d findings, want 1: %+v", len(f), f)
 		}
@@ -28,7 +28,7 @@ func TestSortSpilled(t *testing.T) {
 
 	t.Run("no finding on in-memory sort", func(t *testing.T) {
 		p := loadRuleFixture(t, "sort_spilled", "negative.json")
-		if f := rule.Check(p); len(f) != 0 {
+		if f := rule.Check(newContext(p)); len(f) != 0 {
 			t.Errorf("got %d findings, want 0: %+v", len(f), f)
 		}
 	})

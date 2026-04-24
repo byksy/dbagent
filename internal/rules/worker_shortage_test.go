@@ -7,7 +7,7 @@ func TestWorkerShortage(t *testing.T) {
 
 	t.Run("warning when shortfall >= 2 workers", func(t *testing.T) {
 		p := loadRuleFixture(t, "worker_shortage", "positive.json")
-		f := rule.Check(p)
+		f := rule.Check(newContext(p))
 		if len(f) != 1 {
 			t.Fatalf("got %d findings, want 1: %+v", len(f), f)
 		}
@@ -21,7 +21,7 @@ func TestWorkerShortage(t *testing.T) {
 
 	t.Run("no finding when all workers launched", func(t *testing.T) {
 		p := loadRuleFixture(t, "worker_shortage", "negative.json")
-		if f := rule.Check(p); len(f) != 0 {
+		if f := rule.Check(newContext(p)); len(f) != 0 {
 			t.Errorf("got %d findings, want 0: %+v", len(f), f)
 		}
 	})

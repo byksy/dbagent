@@ -22,7 +22,7 @@ func TestFilterRemovalRatio(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			p := loadRuleFixture(t, "filter_removal_ratio", tc.fixture)
-			findings := rule.Check(p)
+			findings := rule.Check(newContext(p))
 			if len(findings) != tc.wantCount {
 				t.Fatalf("got %d findings, want %d: %+v", len(findings), tc.wantCount, findings)
 			}
@@ -41,7 +41,7 @@ func TestFilterRemovalRatio(t *testing.T) {
 
 func TestFilterRemovalRatio_TotalsReportedInEvidence(t *testing.T) {
 	p := loadRuleFixture(t, "filter_removal_ratio", "positive_nested_loop.json")
-	f := (&FilterRemovalRatio{}).Check(p)
+	f := (&FilterRemovalRatio{}).Check(newContext(p))
 	if len(f) != 1 {
 		t.Fatalf("got %d findings, want 1", len(f))
 	}

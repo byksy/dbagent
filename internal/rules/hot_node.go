@@ -1,10 +1,6 @@
 package rules
 
-import (
-	"fmt"
-
-	"github.com/byksy/dbagent/internal/plan"
-)
+import "fmt"
 
 // Hot-node thresholds. Percentages below 30% are noise — every plan
 // has at least one node consuming "a notable chunk" of time, and
@@ -30,8 +26,12 @@ func (*HotNode) ID() string         { return "hot_node" }
 func (*HotNode) Name() string       { return "Hot node" }
 func (*HotNode) Category() Category { return CategoryDiagnostic }
 
-func (r *HotNode) Check(p *plan.Plan) []Finding {
-	if p == nil || p.Root == nil || p.TotalTimeMs <= 0 {
+func (r *HotNode) Check(ctx *RuleContext) []Finding {
+	if ctx == nil || ctx.Plan == nil {
+		return nil
+	}
+	p := ctx.Plan
+	if p.Root == nil || p.TotalTimeMs <= 0 {
 		return nil
 	}
 	if p.TotalTimeMs < hotNodeMinTotalMs {

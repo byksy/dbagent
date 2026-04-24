@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-
-	"github.com/byksy/dbagent/internal/plan"
 )
 
 // Severity expresses how urgent a finding is. Ordering is ascending
@@ -79,9 +77,10 @@ type Rule interface {
 	Name() string
 	// Category returns diagnostic or prescriptive.
 	Category() Category
-	// Check inspects the plan and returns zero or more findings.
-	// Findings for NeverExecuted nodes must not be emitted.
-	Check(p *plan.Plan) []Finding
+	// Check inspects the plan (and, when available, schema) via the
+	// RuleContext and returns zero or more findings. Findings for
+	// NeverExecuted nodes must not be emitted.
+	Check(ctx *RuleContext) []Finding
 }
 
 // Finding is a single rule's output for one node (or the plan as a
@@ -117,8 +116,8 @@ func newFinding(r Rule, nodeID int, sev Severity, msg string, evidence map[strin
 	}
 }
 
-// Default returns the standard Stage 3 rule set. Registration is
-// explicit (not init()-time) so tests can pass a subset to Run.
+// Default returns the standard rule set. Registration is explicit
+// (not init()-time) so tests can pass a subset to Run.
 func Default() []Rule {
 	return []Rule{
 		&HotNode{},
@@ -129,17 +128,22 @@ func Default() []Rule {
 		&SortSpilled{},
 		&PlanningVsExecution{},
 		&WorkerShortage{},
+		&FKMissingIndex{},
 	}
 }
 
-// Run executes every rule against the plan and returns their findings
+// Run executes every rule against ctx and returns their findings
 // concatenated, sorted deterministically by (severity desc, NodeID
 // asc, RuleID asc). Stable ordering matters for golden tests and for
-// users diffing JSON output.
-func Run(p *plan.Plan, rs []Rule) []Finding {
+// users diffing JSON output. A nil ctx is treated as "no plan, no
+// schema" — no rule can fire and the result is nil.
+func Run(ctx *RuleContext, rs []Rule) []Finding {
+	if ctx == nil {
+		return nil
+	}
 	var out []Finding
 	for _, r := range rs {
-		out = append(out, r.Check(p)...)
+		out = append(out, r.Check(ctx)...)
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		if out[i].Severity != out[j].Severity {

@@ -27,10 +27,11 @@ func (*FilterRemovalRatio) ID() string         { return "filter_removal_ratio" }
 func (*FilterRemovalRatio) Name() string       { return "High filter removal ratio" }
 func (*FilterRemovalRatio) Category() Category { return CategoryDiagnostic }
 
-func (r *FilterRemovalRatio) Check(p *plan.Plan) []Finding {
-	if p == nil || p.Root == nil {
+func (r *FilterRemovalRatio) Check(ctx *RuleContext) []Finding {
+	if ctx == nil || ctx.Plan == nil || ctx.Plan.Root == nil {
 		return nil
 	}
+	p := ctx.Plan
 	var out []Finding
 	for _, n := range p.AllNodes() {
 		if n.NeverExecuted || !isFilterableScan(n.NodeType) {

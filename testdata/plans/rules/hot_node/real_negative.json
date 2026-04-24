@@ -41,9 +41,9 @@
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.142,
+    "Planning Time": 0.134,
     "Triggers": [
     ],
-    "Execution Time": 0.045
+    "Execution Time": 0.034
   }
 ]

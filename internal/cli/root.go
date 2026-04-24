@@ -110,6 +110,7 @@ output to suggest optimizations.`,
 	cmd.AddCommand(newInitCmd())
 	cmd.AddCommand(newTopCmd())
 	cmd.AddCommand(newAnalyzeCmd())
+	cmd.AddCommand(newSchemaCmd())
 	cmd.AddCommand(newVersionCmd())
 
 	return cmd

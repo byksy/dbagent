@@ -8,7 +8,7 @@ import "testing"
 // without a similar gate, this test is the canary that catches it.
 func TestRules_NoisePlanSilent(t *testing.T) {
 	p := loadRuleFixture(t, "_noise", "small_seq_scan.json")
-	findings := Run(p, Default())
+	findings := Run(newContext(p), Default())
 	if len(findings) != 0 {
 		t.Errorf("expected 0 findings on noise plan, got %d:\n%+v", len(findings), findings)
 	}
