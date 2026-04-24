@@ -51,7 +51,11 @@ func ComputeFromRows(rows []RawQueryRow, meta Meta, opts Options) *WorkloadStats
 	if len(filtered) == 0 {
 		// Empty workloads are legitimate (freshly-reset stats, for
 		// example). Fire the R7 recommendation later rather than
-		// returning an error.
+		// returning an error. CacheHitRatio must be -1 here, not the
+		// zero default: leaving it at 0 would both render a misleading
+		// 0% cache bar and trigger a false low_overall_cache_hit
+		// finding.
+		ws.CacheHitRatio = overallCacheHitRatio(filtered)
 		ws.Recommendations = recommendationsFor(ws, filtered, time.Now())
 		return ws
 	}

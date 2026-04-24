@@ -167,12 +167,12 @@ func recR3LowOverallCache(ws *WorkloadStats) *Recommendation {
 func recR5TrivialFrequent(rows []RawQueryRow) *Recommendation {
 	var best *RawQueryRow
 	for i := range rows {
-		r := rows[i]
+		r := &rows[i]
 		if r.Calls < r5MinCalls || r.MeanExecTimeMs >= r5MaxMeanTime {
 			continue
 		}
 		if best == nil || r.Calls > best.Calls {
-			best = &r
+			best = r
 		}
 	}
 	if best == nil {
@@ -198,7 +198,7 @@ func recR6LowPerQueryCache(rows []RawQueryRow) *Recommendation {
 	var worst *RawQueryRow
 	var worstRatio float64 = 1
 	for i := range rows {
-		r := rows[i]
+		r := &rows[i]
 		total := r.SharedBlksHit + r.SharedBlksRead
 		if total < r6MinTotalBlocks {
 			continue
@@ -208,7 +208,7 @@ func recR6LowPerQueryCache(rows []RawQueryRow) *Recommendation {
 			continue
 		}
 		if worst == nil || ratio < worstRatio {
-			worst = &r
+			worst = r
 			worstRatio = ratio
 		}
 	}
