@@ -32,7 +32,7 @@ dbagent stats                                # default: terminal output
 dbagent stats --format html > report.html    # shareable HTML
 dbagent stats --format json                  # structured for CI/scripts
 dbagent stats --top 20                       # more rows per section
-dbagent stats --since 60                     # last 60 minutes of stats
+dbagent stats --since 60                     # accepted, but not yet a true rolling filter (see below)
 dbagent stats --exclude '(?i)pg_catalog'     # additional user-regex skips
 dbagent stats --include-system               # keep SET / SHOW / VACUUM etc.
 dbagent stats --no-color                     # force plain text
@@ -46,6 +46,17 @@ ROLLBACK / SET / SHOW), and maintenance commands (ANALYZE / VACUUM /
 REINDEX / CHECKPOINT / CLUSTER). Pass `--include-system` if you
 actually want to see DBA activity. The same filter applies to
 `dbagent top --include-system`.
+
+### Note on `--since`
+
+`--since` is accepted for forward compatibility but does **not**
+currently restrict results to a rolling window. `pg_stat_statements`
+doesn't record a per-statement "last seen" timestamp — the counters
+accumulate from the last `stats_reset`. The flag is plumbed through
+so the behaviour can grow once PostgreSQL exposes a suitable
+timestamp column; today, treat it as a no-op. The one time-related
+signal that *is* honest is the `stats_recently_reset` recommendation
+(R7), which fires when `stats_reset` was within the last hour.
 
 ## Interpreting the output
 

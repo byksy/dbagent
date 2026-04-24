@@ -95,8 +95,12 @@ type RawQueryRow = pgstat.WorkloadRow
 
 // Options tunes the Compute / ComputeFromRows behaviour.
 type Options struct {
-	TopN          int
-	SinceMinutes  int      // purely informational; Compute passes this through to the SQL filter
+	TopN int
+	// SinceMinutes is accepted for forward compatibility but is not
+	// currently applied as a rolling filter — pg_stat_statements has
+	// no per-statement timestamp. It is propagated to the fetcher so
+	// a real filter can be added without touching callers.
+	SinceMinutes  int
 	ExcludeRegexp []string // skip queries whose text matches any of these patterns
 	IncludeSystem bool     // disable the default noise filter (pg_catalog, SET/SHOW, VACUUM, ...)
 }
