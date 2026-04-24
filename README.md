@@ -162,6 +162,7 @@ Parse and render an `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` plan from a file o
 --format string          output format: tree (default), table, json
 --schema string          schema.json for offline analysis; --schema= opts out of live fetch
 --fail-on string         exit code 7 if any finding reaches this severity: info|warning|critical
+--explain                include detailed explanations (what happened, why it matters, what to do) with each finding
 ```
 
 Example output:
@@ -202,6 +203,28 @@ dbagent analyze --plan-file plan.json --format json | jq '.summary.findings'
 # CI gate: fail the build on any critical finding
 dbagent analyze --plan-file plan.json --fail-on critical
 ```
+
+#### Detailed explanations
+
+By default, findings are terse. Pass `--explain` for a fuller writeup covering what happened, why it matters, and concrete next steps:
+
+```bash
+dbagent analyze --plan-file plan.json --explain
+```
+
+Each finding expands to three blocks:
+
+- **What happened** — the detected pattern in plain language
+- **Why it matters** — the real-world performance impact
+- **What to do** — specific commands and steps
+
+Explanations are also available in JSON output when `--explain` is set:
+
+```bash
+dbagent analyze --plan-file plan.json --format json --explain | jq '.summary.findings[].explanation'
+```
+
+Without `--explain`, the `explanation` field is omitted from each finding so the JSON shape stays backward-compatible with pre-5.7 consumers.
 
 Capture plans from PostgreSQL using:
 

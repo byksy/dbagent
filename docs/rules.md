@@ -32,6 +32,8 @@ Rules that compute row ratios always skip `NeverExecuted` nodes, so a never-take
 
 **Category:** Diagnostic · **Severity:** Info / Warning / Critical
 
+*See also: run `dbagent analyze --explain` for detailed guidance on this rule.*
+
 Flags nodes whose exclusive execution time dominates the query.
 
 **Conditions:**
@@ -53,6 +55,8 @@ Hot nodes are where optimization effort pays off. Check whether the node has a c
 ## row_misestimate
 
 **Category:** Diagnostic · **Severity:** Info / Warning / Critical
+
+*See also: run `dbagent analyze --explain` for detailed guidance on this rule.*
 
 Flags nodes where the planner's per-loop row estimate diverges significantly from actual.
 
@@ -78,6 +82,8 @@ For base-relation scans (Seq Scan, Index Scan, etc.) the finding includes a `Sug
 
 **Category:** Diagnostic · **Severity:** Info / Warning / Critical
 
+*See also: run `dbagent analyze --explain` for detailed guidance on this rule.*
+
 Flags scans that discard the bulk of the rows they read.
 
 **Conditions** (only applies to Seq Scan, Index Scan, Index Only Scan, Bitmap Heap Scan):
@@ -97,6 +103,8 @@ Look for a companion `missing_index_on_filter` finding on the same node for the 
 ## missing_index_on_filter
 
 **Category:** Prescriptive · **Severity:** Warning / Critical
+
+*See also: run `dbagent analyze --explain` for detailed guidance on this rule.*
 
 Suggests a `CREATE INDEX` when a scan with a `Filter` (not Index Cond) discards most of what it scanned at meaningful volume.
 
@@ -126,6 +134,8 @@ The `Suggested` line is only emitted when the filter predicate can be confidentl
 
 **Category:** Prescriptive · **Severity:** Warning
 
+*See also: run `dbagent analyze --explain` for detailed guidance on this rule.*
+
 Flags `BitmapAnd` nodes built from two or more separate `Bitmap Index Scan` children on the same relation. A composite index covering all the conditions avoids the `BitmapAnd` step.
 
 **Conditions:**
@@ -149,6 +159,8 @@ Columns in the proposed index are ordered by selectivity (fewest matching rows f
 
 **Category:** Prescriptive · **Severity:** Warning / Critical
 
+*See also: run `dbagent analyze --explain` for detailed guidance on this rule.*
+
 Flags `Sort` or `Incremental Sort` nodes that overflowed `work_mem` and spilled to disk.
 
 **Conditions:**
@@ -169,6 +181,8 @@ The suggested `work_mem` value is 1.2× the spilled size, rounded up to the next
 
 **Category:** Prescriptive · **Severity:** Info
 
+*See also: run `dbagent analyze --explain` for detailed guidance on this rule.*
+
 Flags queries where planning takes longer than execution. For frequently-run short queries, `PREPARE`/`EXECUTE` amortises the planning cost across calls.
 
 **Conditions:**
@@ -187,6 +201,8 @@ The finding has `NodeID = 0` (plan-level) and no Suggested line, since the remed
 ## worker_shortage
 
 **Category:** Diagnostic · **Severity:** Info / Warning
+
+*See also: run `dbagent analyze --explain` for detailed guidance on this rule.*
 
 Flags `Gather` / `Gather Merge` nodes that received fewer parallel workers than the planner intended.
 
@@ -212,6 +228,8 @@ The remediation is a configuration change, not a SQL statement, so no Suggested 
 
 **Category:** Prescriptive · **Severity:** Warning
 
+*See also: run `dbagent analyze --explain` for detailed guidance on this rule.*
+
 Flags foreign-key columns that lack a supporting leading-column btree index. Unindexed FK columns slow down joins that probe the FK side and make cascading DELETEs/UPDATEs do sequential scans on the referencing table.
 
 This rule needs a loaded schema (live fetch or `--schema <file>`). Offline analysis without a schema skips the rule entirely.
@@ -235,6 +253,8 @@ This rule needs a loaded schema (live fetch or `--schema <file>`). Offline analy
 
 **Category:** Prescriptive · **Severity:** Warning / Critical · *New in v0.5*
 
+*See also: run `dbagent analyze --explain` for detailed guidance on this rule.*
+
 Flags `CTE Scan` nodes that are rescanned many times and accumulate significant row work. PostgreSQL ≥ 12 often inlines non-recursive CTEs, but the inlining is conservative — a CTE used as the inner side of a nested loop still reruns per outer row. Converting such a CTE to a JOIN or subquery typically avoids the repeated work.
 
 **Conditions:** Node is `CTE Scan` · `Loops ≥ 10` · `Loops × (ActualRows + RowsRemovedByFilter) ≥ 10,000`.
@@ -252,6 +272,8 @@ Flags `CTE Scan` nodes that are rescanned many times and accumulate significant 
 ## network_overhead
 
 **Category:** Diagnostic · **Severity:** Info / Warning / Critical · *New in v0.5*
+
+*See also: run `dbagent analyze --explain` for detailed guidance on this rule.*
 
 Flags queries that return a lot of data to the client. The rule only looks at the plan root (the shape the client actually sees).
 
@@ -271,6 +293,8 @@ Flags queries that return a lot of data to the client. The rule only looks at th
 
 **Category:** Prescriptive · **Severity:** Info · *New in v0.5*
 
+*See also: run `dbagent analyze --explain` for detailed guidance on this rule.*
+
 Flags `Aggregate` nodes that use the `Hashed` strategy immediately above a `Sort` whose keys already group the input. In those cases a `GroupAggregate` would skip the hash table entirely.
 
 **Conditions:** Aggregate with `Strategy == "Hashed"` · immediate non-InitPlan child is `Sort` · Sort's leading keys cover the aggregate's `GroupKey`.
@@ -286,6 +310,8 @@ Flags `Aggregate` nodes that use the `Hashed` strategy immediately above a `Sort
 ## memoize_opportunity
 
 **Category:** Prescriptive · **Severity:** Info · *New in v0.5*
+
+*See also: run `dbagent analyze --explain` for detailed guidance on this rule.*
 
 Flags `Nested Loop` joins whose inner side re-probes on repeated keys (many loops, near-zero rows per loop) without a `Memoize` node. PostgreSQL 14 added `Memoize`; the planner picks it based on statistics, so stale stats can make it miss.
 
@@ -303,6 +329,8 @@ Flags `Nested Loop` joins whose inner side re-probes on repeated keys (many loop
 
 **Category:** Diagnostic · **Severity:** Info · *New in v0.5*
 
+*See also: run `dbagent analyze --explain` for detailed guidance on this rule.*
+
 Informational alert: one or more non-primary, non-unique indexes on a table the query touches show zero scans in `pg_stat_user_indexes`. The rule intentionally **does not** suggest `DROP INDEX`; indexes may back rare workflows or constraints, and the call is the operator's.
 
 **Conditions:** schema is loaded · at least one index on the touched table has `Scans > 0` (protects against legacy schema exports where the field is uniformly zero) · the candidate index has `Scans == 0` and is neither primary nor unique.
@@ -318,6 +346,8 @@ Informational alert: one or more non-primary, non-unique indexes on a table the 
 ## duplicate_index
 
 **Category:** Prescriptive · **Severity:** Warning · *New in v0.5*
+
+*See also: run `dbagent analyze --explain` for detailed guidance on this rule.*
 
 Flags pairs of indexes on the same table whose column lists are identical (order-sensitive — `(a, b)` and `(b, a)` are not duplicates).
 
@@ -338,6 +368,8 @@ Flags pairs of indexes on the same table whose column lists are identical (order
 
 **Category:** Prescriptive · **Severity:** Warning · *New in v0.5*
 
+*See also: run `dbagent analyze --explain` for detailed guidance on this rule.*
+
 Flags `Index Scan` / `Index Only Scan` nodes that still carry a trailing `Filter` — the index supplied the index condition, but additional predicates re-check every row afterwards. Extending the index to cover the filter columns often removes the extra work. Complements `missing_index_on_filter`, which targets Seq/Bitmap Heap scans without a usable index.
 
 **Conditions:** schema loaded · node is an Index Scan or Index Only Scan with a non-empty `Filter` · the referenced index is non-primary, non-unique, non-partial, btree.
@@ -353,6 +385,8 @@ Flags `Index Scan` / `Index Only Scan` nodes that still carry a trailing `Filter
 ## table_bloat
 
 **Category:** Prescriptive · **Severity:** Info / Warning · *New in v0.5*
+
+*See also: run `dbagent analyze --explain` for detailed guidance on this rule.*
 
 Flags scans that read dramatically more bytes than their row work warrants — a pattern consistent with dead-tuple bloat or uncleaned TOAST.
 

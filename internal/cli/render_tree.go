@@ -11,8 +11,9 @@ import (
 
 // renderTree renders a Plan as an indented box-drawing tree, a
 // summary block, and a findings section. Findings attached to a node
-// add severity icons to that node's header.
-func renderTree(w io.Writer, p *plan.Plan, s *plan.Summary, findings []rules.Finding) error {
+// add severity icons to that node's header. When explain is true,
+// each finding is followed by its three-block writeup.
+func renderTree(w io.Writer, p *plan.Plan, s *plan.Summary, findings []rules.Finding, explain bool) error {
 	fmt.Fprintf(w, "Plan (total: %s, planning: %s, execution: %s)\n\n",
 		formatDurationMs(p.TotalTimeMs),
 		formatDurationMs(p.PlanningTimeMs),
@@ -24,7 +25,7 @@ func renderTree(w io.Writer, p *plan.Plan, s *plan.Summary, findings []rules.Fin
 	writeSummary(w, p, s)
 	if len(findings) > 0 {
 		fmt.Fprintln(w)
-		_ = formatFindingsSection(w, p, findings)
+		_ = formatFindingsSection(w, p, findings, explain)
 	}
 	return nil
 }
