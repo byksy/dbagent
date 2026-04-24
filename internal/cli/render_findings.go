@@ -87,9 +87,11 @@ func countsBySeverity(findings []rules.Finding) (crit, warn, info int) {
 // formatFindingsSection writes the Findings block to w, grouped by
 // node with a trailing summary line. The plan argument lets each
 // finding print its target node's full label ("[4] Seq Scan on orders");
-// pass nil and findings will fall back to "[id]" alone.
+// pass nil and findings will fall back to "[id]" alone. When explain
+// is true, each finding gains its three-block writeup below the
+// Suggested line.
 // No output when findings is empty.
-func formatFindingsSection(w io.Writer, p *plan.Plan, findings []rules.Finding) error {
+func formatFindingsSection(w io.Writer, p *plan.Plan, findings []rules.Finding, explain bool) error {
 	if len(findings) == 0 {
 		return nil
 	}
@@ -115,7 +117,7 @@ func formatFindingsSection(w io.Writer, p *plan.Plan, findings []rules.Finding) 
 	}
 
 	for _, id := range nodeOrder {
-		writeNodeFindings(w, id, byNode[id], idx)
+		writeNodeFindings(w, id, byNode[id], idx, explain)
 	}
 
 	crit, warn, info := countsBySeverity(findings)
@@ -125,12 +127,18 @@ func formatFindingsSection(w io.Writer, p *plan.Plan, findings []rules.Finding) 
 
 // writeNodeFindings prints every finding attached to a node. Each
 // finding gets its own severity tag so mixed-severity groups stay
-// unambiguous. idx is used to render the node's full label.
-func writeNodeFindings(w io.Writer, nodeID int, findings []rules.Finding, idx map[int]*plan.Node) {
+// unambiguous. idx is used to render the node's full label. When
+// explain is true the three-block writeup is appended under each
+// finding's summary + Suggested lines.
+func writeNodeFindings(w io.Writer, nodeID int, findings []rules.Finding, idx map[int]*plan.Node, explain bool) {
 	if len(findings) == 0 {
 		return
 	}
 	target := nodeTarget(nodeID, idx)
+	// Indent matches the column under the finding's message body —
+	// "  [SEV]     " is 12 characters, so 12 spaces keeps the
+	// explanation flush with the existing "               " text.
+	const explainIndent = "            "
 	for _, f := range findings {
 		tag := strings.ToUpper(f.Severity.String())
 		fmt.Fprintf(w, "  %-8s  %s\n", tag, target)
@@ -140,6 +148,10 @@ func writeNodeFindings(w io.Writer, nodeID int, findings []rules.Finding, idx ma
 		}
 		if f.Suggested != "" {
 			fmt.Fprintf(w, "               Suggested: %s\n", f.Suggested)
+		}
+		if explain {
+			fmt.Fprintln(w)
+			writeExplanation(w, f.RuleID, explainIndent)
 		}
 		fmt.Fprintln(w)
 	}

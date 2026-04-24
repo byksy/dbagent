@@ -1,0 +1,370 @@
+# Each rule has three blocks. All are plain text; no markdown syntax
+# (markdown rendering happens at the CLI layer, not in this file).
+
+hot_node:
+  what_happened: |
+    A single node consumes a large share of the query's total time. The
+    rest of the plan finishes quickly; this one node is the bottleneck.
+
+  why_it_matters: |
+    Optimization effort here has the highest return. Improving a node
+    that takes 80% of the time can cut query time in half; improving
+    one that takes 5% barely moves the needle.
+
+  what_to_do: |
+    Focus investigation on this node. Check whether it has companion
+    findings on the same node — missing_index_on_filter or
+    row_misestimate are common co-occurrences that point to concrete
+    fixes. If no companion findings exist, examine the node type:
+    Seq Scan over a large table usually wants an index; Sort over a
+    large result usually wants more work_mem or better grouping.
+
+row_misestimate:
+  what_happened: |
+    PostgreSQL's planner expected one row count from a node and got a
+    very different one. The planner's strategy was built on the wrong
+    assumption.
+
+  why_it_matters: |
+    Bad row estimates cause bad join strategies. The planner picks
+    nested loop when hash join would win, allocates too little memory
+    for a sort, or chooses the wrong join order. When this happens
+    deep in the plan, the damage compounds upward.
+
+  what_to_do: |
+    1. Run ANALYZE on the affected table to refresh statistics.
+    2. If the misestimate persists after ANALYZE, data distribution
+       may be unusual. Increase statistics target:
+         ALTER TABLE <table> ALTER COLUMN <column> SET STATISTICS 1000;
+       Then run ANALYZE again.
+    3. For correlated columns, consider extended statistics:
+         CREATE STATISTICS <name> ON <col1>, <col2> FROM <table>;
+       Then ANALYZE.
+
+filter_removal_ratio:
+  what_happened: |
+    A scan reads many rows and throws most of them away with a filter.
+    The filter runs AFTER the rows have already been read from disk
+    or cache.
+
+  why_it_matters: |
+    Reading rows you discard is wasted I/O and CPU. The waste scales
+    with table size — as the table grows, performance degrades faster
+    than query complexity suggests.
+
+  what_to_do: |
+    This rule alone is diagnostic. Check the node for a companion
+    missing_index_on_filter finding — if present, its suggestion is
+    the fix. If absent (perhaps because the filter expression is too
+    complex to parse), consider manually designing an index that
+    covers the filter condition, or restructuring the query to filter
+    earlier (e.g., push conditions into a WHERE clause instead of HAVING).
+
+missing_index_on_filter:
+  what_happened: |
+    A scan reads a large number of rows and filters most of them out.
+    An index that includes the filter columns would let PostgreSQL
+    access only the matching rows directly.
+
+  why_it_matters: |
+    Without the index, the query's cost grows linearly with table
+    size. With a btree index on the filter columns, lookup becomes
+    logarithmic — enormously faster for large tables. This is among
+    the most impactful single changes you can make.
+
+  what_to_do: |
+    1. Review the Suggested CREATE INDEX statement above. It names
+       the columns parsed from the filter expression.
+    2. Verify the suggested column order matches your query patterns.
+       For multi-column filters, put the most selective (narrowest)
+       column first.
+    3. Consider a partial index if the filter is highly selective:
+         CREATE INDEX ON <table> (<col>) WHERE <stable_condition>;
+    4. Factor in write cost: every INSERT and UPDATE pays a small
+       overhead for each index. Heavily-written tables should have
+       only the indexes that measurably help reads.
+
+bitmap_and_composite:
+  what_happened: |
+    PostgreSQL built a bitmap by combining two or more separate index
+    scans. It walks each index, constructs partial bitmaps, then
+    intersects them — extra work the planner wouldn't need if a
+    single composite index existed.
+
+  why_it_matters: |
+    The BitmapAnd step has measurable overhead. A composite index
+    covering all the conditions produces the result directly, often
+    making the query 2-5× faster. It also reduces the number of
+    indexes PostgreSQL has to maintain on write.
+
+  what_to_do: |
+    1. Create the composite index shown in Suggested.
+    2. Drop the individual indexes that are now redundant — but only
+       if they aren't used by other queries. Check pg_stat_user_indexes
+       for each candidate:
+         SELECT indexrelname, idx_scan FROM pg_stat_user_indexes
+         WHERE relname = '<table>';
+    3. Column order matters: put the most selective column first,
+       then ordering/range columns.
+
+sort_spilled:
+  what_happened: |
+    A Sort node couldn't fit its working set in memory and wrote
+    temporary data to disk. Disk I/O for sorting is one or two orders
+    of magnitude slower than in-memory sort.
+
+  why_it_matters: |
+    A disk-backed sort can dominate a query's runtime. work_mem is
+    allocated per sort operation, so the same query might spill for
+    one user but not another if memory settings differ.
+
+  what_to_do: |
+    1. Increase work_mem for this query session only:
+         SET LOCAL work_mem = '<N>MB';
+       Use the size shown in the Suggested line as a starting point.
+    2. If the query is frequent, consider setting work_mem in
+       postgresql.conf — but do so carefully: work_mem is allocated
+       per sort, so a value of 256MB × 20 concurrent queries × 3 sorts
+       per query = 15GB of RAM.
+    3. Alternative: remove the need for sorting. Would adding an
+       index with matching ORDER BY columns let PostgreSQL skip the
+       sort entirely?
+
+planning_vs_execution:
+  what_happened: |
+    Planning the query took longer than executing it. This means
+    PostgreSQL spent more time deciding HOW to run the query than
+    actually running it.
+
+  why_it_matters: |
+    For queries executed thousands of times with the same shape,
+    planning cost adds up. Prepared statements plan once and execute
+    many times, eliminating this overhead.
+
+  what_to_do: |
+    1. In application code using a driver, switch to prepared
+       statements or parameterized queries (most drivers do this
+       automatically when you pass parameters).
+    2. In SQL, use PREPARE/EXECUTE:
+         PREPARE my_query AS SELECT ... WHERE col = $1;
+         EXECUTE my_query('value');
+    3. If planning is slow due to statistics, running ANALYZE on the
+       involved tables can help PostgreSQL plan faster.
+
+worker_shortage:
+  what_happened: |
+    PostgreSQL planned to use multiple workers for parallel execution
+    but couldn't launch all of them. Parallel work is capped at
+    whatever workers actually started.
+
+  why_it_matters: |
+    If the planner thought 4 workers was the right choice and only 2
+    launched, the query is running at half the intended parallelism.
+    Worker shortage typically means the server-wide worker pool is
+    maxed out by other concurrent queries.
+
+  what_to_do: |
+    1. Check the server-wide worker configuration:
+         SHOW max_parallel_workers_per_gather;
+         SHOW max_parallel_workers;
+         SHOW max_worker_processes;
+    2. Increase max_parallel_workers if the server has CPU headroom.
+       max_worker_processes is a hard cap — it requires a PostgreSQL
+       restart to change.
+    3. If you regularly see shortage, other concurrent queries may be
+       consuming all available workers. Look at workload patterns.
+
+fk_missing_index:
+  what_happened: |
+    A foreign key column does not have a supporting index. Joins that
+    use the FK column and cascading UPDATE/DELETE operations are
+    forced to scan the whole referring table.
+
+  why_it_matters: |
+    Unindexed FK columns are a classic source of slow joins and
+    lock contention on cascading writes. Every DELETE on the parent
+    table has to check the child table — without an index, that's a
+    full scan.
+
+  what_to_do: |
+    1. Create the index shown in Suggested.
+    2. Typically this is a btree on the FK column alone. For
+       composite FKs, create a composite index with the same column
+       order.
+    3. Check for cascading DELETE/UPDATE patterns on the parent
+       table — those benefit most from this index.
+
+cte_cartesian_product:
+  what_happened: |
+    A CTE (WITH clause) was evaluated many times during the query.
+    PostgreSQL re-runs the CTE body on each scan unless it's
+    explicitly materialized.
+
+  why_it_matters: |
+    A CTE scanned 50 times with 1000 rows each does 50,000 row
+    operations where the original CTE should have produced 1000.
+    This is one of the most common and most costly PostgreSQL
+    antipatterns.
+
+  what_to_do: |
+    1. Rewrite the CTE as a JOIN or subquery. Most CTEs that aren't
+       doing recursive work perform better as subqueries.
+    2. If you must keep the CTE, force materialization (PostgreSQL 12+):
+         WITH my_cte AS MATERIALIZED (...)
+       This evaluates the CTE once and caches the result.
+    3. Review whether the CTE is actually needed at all — sometimes
+       CTEs are used for readability when a subquery would work.
+
+network_overhead:
+  what_happened: |
+    The query returns a large volume of row data to the client. The
+    actual row size × row count adds up to significant network
+    traffic.
+
+  why_it_matters: |
+    Sending large result sets over the network is slow and often
+    unnecessary. Most applications only display or process a small
+    subset of what's retrieved, especially when SELECT * is used
+    or LIMIT is missing.
+
+  what_to_do: |
+    1. Select only the columns your application actually uses.
+       Avoid SELECT *.
+    2. Add LIMIT for interactive queries; add pagination for lists.
+    3. If you need aggregation, do it server-side (SUM, COUNT, GROUP BY)
+       rather than pulling raw rows and aggregating client-side.
+    4. For large exports, consider streaming via COPY or a cursor.
+
+redundant_aggregation:
+  what_happened: |
+    A HashAggregate sits above a Sort that delivers rows in the exact
+    order the aggregate needs. PostgreSQL could have used a
+    GroupAggregate and skipped the hash table entirely.
+
+  why_it_matters: |
+    HashAggregate builds a hash table in memory; for large inputs
+    this is expensive in both time and memory. GroupAggregate over
+    already-sorted input is essentially free — it just walks the
+    rows and groups adjacent matches.
+
+  what_to_do: |
+    This is often automatic — the planner usually picks GroupAggregate
+    when input is pre-sorted. If it's not doing so, the statistics
+    may be misleading it. Options:
+
+    1. Ensure statistics are current: ANALYZE the tables.
+    2. As a last resort, change GUCs for this query:
+         SET LOCAL enable_hashagg = off;
+       This is a blunt tool — use only if you've verified the
+       alternative is faster for this specific query.
+
+memoize_opportunity:
+  what_happened: |
+    A Nested Loop's inner side runs many iterations with repeated
+    lookup keys, but no Memoize node is caching results. PostgreSQL
+    14+ can insert Memoize automatically when statistics suggest it.
+
+  why_it_matters: |
+    Memoize can turn N expensive lookups into N cheap cache hits.
+    Missing this optimization usually means the planner's statistics
+    don't reveal that keys repeat.
+
+  what_to_do: |
+    1. Run ANALYZE on the inner-side table. Good statistics help the
+       planner decide to insert Memoize.
+    2. Verify enable_memoize is on (it is by default in v14+):
+         SHOW enable_memoize;
+    3. If repeated keys are a known pattern, consider denormalizing
+       or restructuring the query to compute the inner side once
+       (e.g., materialized CTE).
+
+unused_index_hint:
+  what_happened: |
+    One or more indexes on a table touched by this query have zero
+    recorded scans since the last statistics reset. They may not be
+    used at all, or they may be used only by workflows outside this
+    analysis window.
+
+  why_it_matters: |
+    Every index costs space and write performance. Unused indexes
+    pay these costs for no benefit. But "unused" here means "not
+    recorded as used in pg_stat_user_indexes since last reset" —
+    not "truly unused." Primary keys and unique constraints must
+    stay regardless of scan count.
+
+  what_to_do: |
+    1. Confirm the stats window covers a representative period. If
+       pg_stat_statements was reset recently, scan counts may not
+       reflect reality yet.
+    2. For each candidate index, check if it enforces a constraint
+       (primary key, unique, or foreign key supporting). If so,
+       leave it alone regardless of scan count.
+    3. For genuinely unused non-constraint indexes, drop carefully
+       and monitor:
+         DROP INDEX <name>;
+       dbagent does not emit DROP statements automatically because
+       the decision requires human judgment.
+
+duplicate_index:
+  what_happened: |
+    Two or more indexes on the same table cover identical column
+    lists. They duplicate each other's work — reads pick one, writes
+    pay cost for all.
+
+  why_it_matters: |
+    A duplicate index wastes disk space and slows down every INSERT
+    and UPDATE on the table. It offers no read performance benefit
+    over its counterpart.
+
+  what_to_do: |
+    1. Review both indexes. Check pg_stat_user_indexes to see which
+       one is actually used by queries.
+    2. Drop the less-used one, or the newer one if usage is equal:
+         DROP INDEX <name>;
+    3. If one is a primary key or unique constraint, keep that one
+       and drop the other.
+
+composite_index_extension:
+  what_happened: |
+    A query uses an index for part of its conditions, then filters
+    the remaining rows in memory. An index extended to include the
+    additional columns would skip the filter step.
+
+  why_it_matters: |
+    Extending an existing index is usually better than creating a
+    new one: fewer indexes to maintain, less disk space, same or
+    better query performance.
+
+  what_to_do: |
+    1. Review the Suggested DROP + CREATE statements above.
+    2. The new column order preserves the existing index's usefulness
+       for queries that only use the original columns.
+    3. Run the change during a maintenance window — CREATE INDEX
+       CONCURRENTLY is preferable on production tables to avoid
+       locks:
+         CREATE INDEX CONCURRENTLY new_idx ON <table> (<cols>);
+         DROP INDEX old_idx;
+
+table_bloat:
+  what_happened: |
+    A scan reads substantially more bytes than the row count would
+    suggest. This often indicates dead tuples — rows that were
+    deleted or updated but whose space hasn't been reclaimed.
+
+  why_it_matters: |
+    Bloated tables waste I/O and cache. Every scan reads not just
+    the live rows but also the dead ones that autovacuum hasn't
+    cleaned up. In extreme cases, a 10 GB table can effectively
+    behave like a 50 GB table.
+
+  what_to_do: |
+    1. Run VACUUM (ANALYZE) on the table to reclaim dead tuple space:
+         VACUUM (ANALYZE) <table>;
+       This is online and safe.
+    2. If bloat is severe (rare), consider VACUUM FULL, but note it
+       takes an exclusive lock and rewrites the whole table:
+         VACUUM FULL <table>;
+    3. Investigate why autovacuum isn't keeping up. Look at
+       autovacuum settings and the table's update/delete patterns.
+       Heavy write workloads may need more aggressive autovacuum
+       thresholds.

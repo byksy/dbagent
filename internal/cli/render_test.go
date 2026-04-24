@@ -129,7 +129,7 @@ func TestRenderTree_Golden(t *testing.T) {
 		t.Run(tc.fixture, func(t *testing.T) {
 			p := loadPlanFixture(t, tc.fixture)
 			var buf bytes.Buffer
-			if err := renderTree(&buf, p, plan.Summarize(p), rules.Run(&rules.RuleContext{Plan: p}, rules.Default())); err != nil {
+			if err := renderTree(&buf, p, plan.Summarize(p), rules.Run(&rules.RuleContext{Plan: p}, rules.Default()), false); err != nil {
 				t.Fatalf("renderTree: %v", err)
 			}
 			checkGolden(t, filepath.Join(goldenDir, tc.golden), buf.String())
@@ -149,7 +149,7 @@ func TestRenderTable_Golden(t *testing.T) {
 		t.Run(tc.fixture, func(t *testing.T) {
 			p := loadPlanFixture(t, tc.fixture)
 			var buf bytes.Buffer
-			if err := renderTable(&buf, p, plan.Summarize(p), rules.Run(&rules.RuleContext{Plan: p}, rules.Default())); err != nil {
+			if err := renderTable(&buf, p, plan.Summarize(p), rules.Run(&rules.RuleContext{Plan: p}, rules.Default()), false); err != nil {
 				t.Fatalf("renderTable: %v", err)
 			}
 			checkGolden(t, filepath.Join(goldenDir, tc.golden), buf.String())
@@ -160,7 +160,7 @@ func TestRenderTable_Golden(t *testing.T) {
 func TestRenderJSON_Structure(t *testing.T) {
 	p := loadPlanFixture(t, "real/hash_join_with_filter.json")
 	var buf bytes.Buffer
-	if err := renderJSON(&buf, p, plan.Summarize(p), rules.Run(&rules.RuleContext{Plan: p}, rules.Default())); err != nil {
+	if err := renderJSON(&buf, p, plan.Summarize(p), rules.Run(&rules.RuleContext{Plan: p}, rules.Default()), false); err != nil {
 		t.Fatalf("renderJSON: %v", err)
 	}
 	var out map[string]any
@@ -187,7 +187,7 @@ func TestRenderJSON_Structure(t *testing.T) {
 func TestRenderTree_NeverExecuted_NoPanic(t *testing.T) {
 	p := loadPlanFixture(t, "synthetic/never_executed_branch.json")
 	var buf bytes.Buffer
-	if err := renderTree(&buf, p, plan.Summarize(p), rules.Run(&rules.RuleContext{Plan: p}, rules.Default())); err != nil {
+	if err := renderTree(&buf, p, plan.Summarize(p), rules.Run(&rules.RuleContext{Plan: p}, rules.Default()), false); err != nil {
 		t.Fatalf("renderTree: %v", err)
 	}
 	if !strings.Contains(buf.String(), "(never executed)") {
@@ -198,11 +198,128 @@ func TestRenderTree_NeverExecuted_NoPanic(t *testing.T) {
 func TestRenderTree_UnknownNodeType_NoPanic(t *testing.T) {
 	p := loadPlanFixture(t, "synthetic/unknown_node_type.json")
 	var buf bytes.Buffer
-	if err := renderTree(&buf, p, plan.Summarize(p), rules.Run(&rules.RuleContext{Plan: p}, rules.Default())); err != nil {
+	if err := renderTree(&buf, p, plan.Summarize(p), rules.Run(&rules.RuleContext{Plan: p}, rules.Default()), false); err != nil {
 		t.Fatalf("renderTree: %v", err)
 	}
 	if !strings.Contains(buf.String(), "Imaginary Scan") {
 		t.Errorf("expected raw node type 'Imaginary Scan' in output:\n%s", buf.String())
+	}
+}
+
+// TestRenderTree_WithExplain_AddsBlocks verifies that --explain
+// surfaces the three-block writeup below each finding's existing
+// one-liner without disturbing the rest of the output.
+func TestRenderTree_WithExplain_AddsBlocks(t *testing.T) {
+	p := loadPlanFixture(t, "rules/missing_index_on_filter/positive.json")
+	findings := rules.Run(&rules.RuleContext{Plan: p}, rules.Default())
+	if len(findings) == 0 {
+		t.Fatalf("fixture should produce at least one finding")
+	}
+	var buf bytes.Buffer
+	if err := renderTree(&buf, p, plan.Summarize(p), findings, true); err != nil {
+		t.Fatalf("renderTree: %v", err)
+	}
+	out := buf.String()
+	for _, label := range []string{"What happened", "Why it matters", "What to do"} {
+		if !strings.Contains(out, label) {
+			t.Errorf("--explain output missing %q:\n%s", label, out)
+		}
+	}
+}
+
+// TestRenderTree_WithoutExplain_KeepsDefault confirms the plain
+// renderer has no trace of Stage 5.7 labels — critical for keeping
+// Stage 5.6 goldens stable and for the "pay only when you ask"
+// principle.
+func TestRenderTree_WithoutExplain_KeepsDefault(t *testing.T) {
+	p := loadPlanFixture(t, "rules/missing_index_on_filter/positive.json")
+	findings := rules.Run(&rules.RuleContext{Plan: p}, rules.Default())
+	var buf bytes.Buffer
+	if err := renderTree(&buf, p, plan.Summarize(p), findings, false); err != nil {
+		t.Fatalf("renderTree: %v", err)
+	}
+	for _, forbidden := range []string{"What happened", "Why it matters", "What to do"} {
+		if strings.Contains(buf.String(), forbidden) {
+			t.Errorf("default tree output must not contain %q", forbidden)
+		}
+	}
+}
+
+// TestRenderTable_WithExplain_AddsBlocks mirrors the tree test for
+// the table renderer: the table itself stays compact, but the
+// Findings block gains the writeup when --explain is set.
+func TestRenderTable_WithExplain_AddsBlocks(t *testing.T) {
+	p := loadPlanFixture(t, "rules/missing_index_on_filter/positive.json")
+	findings := rules.Run(&rules.RuleContext{Plan: p}, rules.Default())
+	if len(findings) == 0 {
+		t.Fatalf("fixture should produce at least one finding")
+	}
+	var buf bytes.Buffer
+	if err := renderTable(&buf, p, plan.Summarize(p), findings, true); err != nil {
+		t.Fatalf("renderTable: %v", err)
+	}
+	out := buf.String()
+	for _, label := range []string{"What happened", "Why it matters", "What to do"} {
+		if !strings.Contains(out, label) {
+			t.Errorf("--explain output missing %q:\n%s", label, out)
+		}
+	}
+}
+
+// TestRenderJSON_WithExplain_IncludesBlocks ensures the wire shape
+// gains an "explanation" object under each finding when --explain is
+// set, with all three text blocks populated from the embedded YAML.
+func TestRenderJSON_WithExplain_IncludesBlocks(t *testing.T) {
+	p := loadPlanFixture(t, "rules/missing_index_on_filter/positive.json")
+	findings := rules.Run(&rules.RuleContext{Plan: p}, rules.Default())
+	if len(findings) == 0 {
+		t.Fatalf("fixture should produce at least one finding")
+	}
+	var buf bytes.Buffer
+	if err := renderJSON(&buf, p, plan.Summarize(p), findings, true); err != nil {
+		t.Fatalf("renderJSON: %v", err)
+	}
+	var out map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &out); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	summary, ok := out["summary"].(map[string]any)
+	if !ok {
+		t.Fatalf("summary missing or wrong type")
+	}
+	rawFindings, ok := summary["findings"].([]any)
+	if !ok || len(rawFindings) == 0 {
+		t.Fatalf("findings missing or empty: %#v", summary["findings"])
+	}
+	first, ok := rawFindings[0].(map[string]any)
+	if !ok {
+		t.Fatalf("first finding not an object: %#v", rawFindings[0])
+	}
+	explanation, ok := first["explanation"].(map[string]any)
+	if !ok {
+		t.Fatalf("first finding missing explanation: %#v", first)
+	}
+	for _, key := range []string{"what_happened", "why_it_matters", "what_to_do"} {
+		s, ok := explanation[key].(string)
+		if !ok || strings.TrimSpace(s) == "" {
+			t.Errorf("explanation.%s missing or empty: %#v", key, explanation[key])
+		}
+	}
+}
+
+// TestRenderJSON_WithoutExplain_OmitsBlocks locks in the backward-
+// compatible JSON shape: no "explanation" field when --explain is
+// not set. Downstream consumers written against pre-5.7 output keep
+// working as-is.
+func TestRenderJSON_WithoutExplain_OmitsBlocks(t *testing.T) {
+	p := loadPlanFixture(t, "rules/missing_index_on_filter/positive.json")
+	findings := rules.Run(&rules.RuleContext{Plan: p}, rules.Default())
+	var buf bytes.Buffer
+	if err := renderJSON(&buf, p, plan.Summarize(p), findings, false); err != nil {
+		t.Fatalf("renderJSON: %v", err)
+	}
+	if strings.Contains(buf.String(), `"explanation"`) {
+		t.Errorf("default JSON output must not include explanation key:\n%s", buf.String())
 	}
 }
 

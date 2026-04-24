@@ -12,8 +12,10 @@ import (
 
 // renderTable prints the plan as a flat aligned table, one row per
 // node, with the node column indented by depth. Findings render as
-// a trailing block after the summary.
-func renderTable(w io.Writer, p *plan.Plan, s *plan.Summary, findings []rules.Finding) error {
+// a trailing block after the summary. The table itself stays compact
+// regardless of explain — explanations, when enabled, attach to the
+// per-finding Findings block rather than inflating table rows.
+func renderTable(w io.Writer, p *plan.Plan, s *plan.Summary, findings []rules.Finding, explain bool) error {
 	fmt.Fprintf(w, "Plan (total: %s, planning: %s, execution: %s)\n\n",
 		formatDurationMs(p.TotalTimeMs),
 		formatDurationMs(p.PlanningTimeMs),
@@ -31,7 +33,7 @@ func renderTable(w io.Writer, p *plan.Plan, s *plan.Summary, findings []rules.Fi
 	writeSummary(w, p, s)
 	if len(findings) > 0 {
 		fmt.Fprintln(w)
-		_ = formatFindingsSection(w, p, findings)
+		_ = formatFindingsSection(w, p, findings, explain)
 	}
 	return nil
 }

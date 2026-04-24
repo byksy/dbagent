@@ -25,6 +25,7 @@ type analyzeFlags struct {
 	format     string
 	failOn     string
 	schemaPath *string
+	explain    bool
 }
 
 // newAnalyzeCmd builds the "analyze" subcommand.
@@ -55,6 +56,7 @@ Examples:
 	cmd.Flags().StringVar(&f.planFile, "plan-file", "", "path to EXPLAIN JSON file; empty means read from stdin")
 	cmd.Flags().StringVar(&f.format, "format", "tree", "output format: tree|table|json")
 	cmd.Flags().StringVar(&f.failOn, "fail-on", "", "exit non-zero if any finding reaches this severity: info|warning|critical")
+	cmd.Flags().BoolVar(&f.explain, "explain", false, "include detailed explanations (what happened, why it matters, what to do) with each finding")
 
 	// --schema: pointer-tracked so we can tell "user passed --schema \"\""
 	// (explicit offline) apart from "user didn't pass it at all" (try to
@@ -140,15 +142,15 @@ func runAnalyze(cmd *cobra.Command, f *analyzeFlags) error {
 
 	switch f.format {
 	case "", "tree":
-		if err := renderTree(w, p, summary, findings); err != nil {
+		if err := renderTree(w, p, summary, findings, f.explain); err != nil {
 			return err
 		}
 	case "table":
-		if err := renderTable(w, p, summary, findings); err != nil {
+		if err := renderTable(w, p, summary, findings, f.explain); err != nil {
 			return err
 		}
 	case "json":
-		if err := renderJSON(w, p, summary, findings); err != nil {
+		if err := renderJSON(w, p, summary, findings, f.explain); err != nil {
 			return err
 		}
 	default:
