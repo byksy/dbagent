@@ -117,12 +117,13 @@ func rowsForTimeView(qs []stats.QueryGroup) []htmlRow {
 	out := make([]htmlRow, 0, len(qs))
 	for _, q := range qs {
 		out = append(out, htmlRow{
-			Rank:    q.Rank,
-			Calls:   q.Calls,
-			MeanMs:  q.MeanTimeMs,
-			TotalMs: q.TotalTimeMs,
-			Share:   q.PctOfTotal,
-			Query:   q.QueryText,
+			Rank:     q.Rank,
+			Calls:    q.Calls,
+			MeanMs:   q.MeanTimeMs,
+			TotalMs:  q.TotalTimeMs,
+			Share:    q.PctOfTotal,
+			CacheHit: -1, // time-based sections don't expose cache data; -1 → "—"
+			Query:    q.QueryText,
 		})
 	}
 	return out

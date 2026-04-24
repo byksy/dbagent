@@ -35,6 +35,11 @@ func Compute(ctx context.Context, pool *pgxpool.Pool, opts Options) (*WorkloadSt
 // ComputeFromRows is the pure-function core of Compute. It takes
 // already-fetched rows plus Meta and returns the snapshot. Safe to
 // call with a nil or empty row slice.
+//
+// Recommendation freshness (R7) anchors on meta.SnapshotAt rather
+// than time.Now(), so the "X minutes ago" reasoning stays consistent
+// with the Stats-since line shown in the renderers and tests get a
+// deterministic output for a given fixture.
 func ComputeFromRows(rows []RawQueryRow, meta Meta, opts Options) *WorkloadStats {
 	if opts.TopN <= 0 {
 		opts.TopN = DefaultOptions().TopN
@@ -48,6 +53,11 @@ func ComputeFromRows(rows []RawQueryRow, meta Meta, opts Options) *WorkloadStats
 	}
 	ws.Meta.SchemaVersion = SchemaVersion
 
+	now := meta.SnapshotAt
+	if now.IsZero() {
+		now = time.Now()
+	}
+
 	if len(filtered) == 0 {
 		// Empty workloads are legitimate (freshly-reset stats, for
 		// example). Fire the R7 recommendation later rather than
@@ -56,7 +66,7 @@ func ComputeFromRows(rows []RawQueryRow, meta Meta, opts Options) *WorkloadStats
 		// 0% cache bar and trigger a false low_overall_cache_hit
 		// finding.
 		ws.CacheHitRatio = overallCacheHitRatio(filtered)
-		ws.Recommendations = recommendationsFor(ws, filtered, time.Now())
+		ws.Recommendations = recommendationsFor(ws, filtered, now)
 		return ws
 	}
 
@@ -81,7 +91,7 @@ func ComputeFromRows(rows []RawQueryRow, meta Meta, opts Options) *WorkloadStats
 	ws.TopByIO = buildTop(filtered, byIOReads, opts.TopN, ws.TotalTimeMs)
 	ws.TopByLowCache = buildTopLowCache(filtered, opts.TopN, ws.TotalTimeMs)
 
-	ws.Recommendations = recommendationsFor(ws, filtered, time.Now())
+	ws.Recommendations = recommendationsFor(ws, filtered, now)
 	return ws
 }
 
