@@ -18,7 +18,7 @@ The tool is being built in stages. Upcoming work includes an expanded rule set, 
 **Users:**
 
 ```bash
-go install github.com/byksy/dbagent/cmd/dbagent@v0.3.1
+go install github.com/byksy/dbagent/cmd/dbagent@v0.4.0
 ```
 
 (Until the module is mature, pin to a specific tag. `@latest` will resolve
