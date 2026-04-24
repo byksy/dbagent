@@ -151,6 +151,65 @@ func (s *Schema) ForeignKeysOn(tableFQN string) []ForeignKey {
 	return out
 }
 
+// DuplicateIndexes returns groups of indexes on the same table that
+// share identical column lists (order-sensitive). Each group has
+// two or more entries; within a group, indexes are sorted by name
+// for stable output.
+//
+// "Duplicate" here is strict: indexes on (a, b) and (b, a) are NOT
+// duplicates — they support different query shapes. Partial indexes
+// are excluded because their WHERE clauses make them semantically
+// distinct even when columns match. Primary-key and unique indexes
+// are kept in the output but rule consumers should prefer dropping
+// the non-constraint variant.
+func (s *Schema) DuplicateIndexes() [][]*Index {
+	if s == nil {
+		return nil
+	}
+	type key struct {
+		table string
+		cols  string
+	}
+	groups := map[key][]*Index{}
+	for _, idx := range s.Indexes {
+		if idx == nil || idx.IsPartial || len(idx.Columns) == 0 {
+			continue
+		}
+		k := key{
+			table: normaliseFQN(idx.Table),
+			cols:  strings.Join(idx.Columns, "\x00"),
+		}
+		groups[k] = append(groups[k], idx)
+	}
+
+	type sortedKey struct {
+		k key
+	}
+	var ordered []sortedKey
+	for k, v := range groups {
+		if len(v) < 2 {
+			continue
+		}
+		ordered = append(ordered, sortedKey{k: k})
+		sort.SliceStable(v, func(i, j int) bool { return v[i].Name < v[j].Name })
+	}
+	sort.SliceStable(ordered, func(i, j int) bool {
+		if ordered[i].k.table != ordered[j].k.table {
+			return ordered[i].k.table < ordered[j].k.table
+		}
+		return ordered[i].k.cols < ordered[j].k.cols
+	})
+
+	if len(ordered) == 0 {
+		return nil
+	}
+	out := make([][]*Index, 0, len(ordered))
+	for _, o := range ordered {
+		out = append(out, groups[o.k])
+	}
+	return out
+}
+
 // FKWithoutIndex pairs a foreign key with the columns that lack a
 // supporting index. Missing is always non-empty.
 type FKWithoutIndex struct {

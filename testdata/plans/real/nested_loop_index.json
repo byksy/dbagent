@@ -9,8 +9,8 @@
       "Total Cost": 16.61,
       "Plan Rows": 1,
       "Plan Width": 42,
-      "Actual Startup Time": 0.032,
-      "Actual Total Time": 0.033,
+      "Actual Startup Time": 0.016,
+      "Actual Total Time": 0.017,
       "Actual Rows": 1,
       "Actual Loops": 1,
       "Inner Unique": true,
@@ -38,8 +38,8 @@
           "Total Cost": 8.31,
           "Plan Rows": 1,
           "Plan Width": 30,
-          "Actual Startup Time": 0.019,
-          "Actual Total Time": 0.020,
+          "Actual Startup Time": 0.008,
+          "Actual Total Time": 0.008,
           "Actual Rows": 1,
           "Actual Loops": 1,
           "Index Cond": "(id = 12345)",
@@ -68,8 +68,8 @@
           "Total Cost": 8.30,
           "Plan Rows": 1,
           "Plan Width": 12,
-          "Actual Startup Time": 0.010,
-          "Actual Total Time": 0.010,
+          "Actual Startup Time": 0.006,
+          "Actual Total Time": 0.006,
           "Actual Rows": 1,
           "Actual Loops": 1,
           "Index Cond": "(id = o.customer_id)",
@@ -88,7 +88,7 @@
       ]
     },
     "Planning": {
-      "Shared Hit Blocks": 247,
+      "Shared Hit Blocks": 271,
       "Shared Read Blocks": 0,
       "Shared Dirtied Blocks": 0,
       "Shared Written Blocks": 0,
@@ -99,9 +99,9 @@
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.262,
+    "Planning Time": 0.310,
     "Triggers": [
     ],
-    "Execution Time": 0.064
+    "Execution Time": 0.041
   }
 ]

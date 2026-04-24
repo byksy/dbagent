@@ -33,6 +33,7 @@ PSQL=(docker exec -i "$CONTAINER" psql -U "$USER" -d "$DB" -At)
 
 echo "→ resetting schema to Stage 2 baseline"
 "${PSQL[@]}" <<'SQL' >/dev/null
+DROP TABLE IF EXISTS rule_bloat CASCADE;
 DROP TABLE IF EXISTS rule_orders CASCADE;
 DROP TABLE IF EXISTS orders CASCADE;
 DROP TABLE IF EXISTS customers CASCADE;

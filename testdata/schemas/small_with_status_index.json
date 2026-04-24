@@ -1,9 +1,9 @@
 {
   "meta": {
-    "exported_at": "2026-04-24T05:38:56.297711Z",
+    "exported_at": "2026-04-24T10:47:05.226987Z",
     "database": "postgres",
     "server_version": "17.9 (Debian 17.9-1.pgdg13+1)",
-    "dbagent_version": "v0.1.0-dev"
+    "dbagent_version": "v0.4.1-2-g14e883d-dirty"
   },
   "tables": {
     "public.customers": {
@@ -31,7 +31,7 @@
       ],
       "row_estimate": 5000,
       "size_bytes": 458752,
-      "last_analyzed": "2026-04-24T05:38:55.455756Z",
+      "last_analyzed": "2026-04-24T10:47:04.719246Z",
       "last_vacuumed": "0001-01-01T00:00:00Z"
     },
     "public.orders": {
@@ -70,8 +70,8 @@
         }
       ],
       "row_estimate": 50000,
-      "size_bytes": 4186112,
-      "last_analyzed": "2026-04-24T05:38:55.477124Z",
+      "size_bytes": 4874240,
+      "last_analyzed": "2026-04-24T10:47:04.740806Z",
       "last_vacuumed": "0001-01-01T00:00:00Z"
     }
   },
@@ -88,7 +88,8 @@
       "is_partial": false,
       "method": "btree",
       "size_bytes": 131072,
-      "definition": "CREATE UNIQUE INDEX customers_pkey ON public.customers USING btree (id)"
+      "definition": "CREATE UNIQUE INDEX customers_pkey ON public.customers USING btree (id)",
+      "scans": 50009
     },
     "public.customers_region_idx": {
       "schema": "public",
@@ -102,7 +103,8 @@
       "is_partial": false,
       "method": "btree",
       "size_bytes": 65536,
-      "definition": "CREATE INDEX customers_region_idx ON public.customers USING btree (region)"
+      "definition": "CREATE INDEX customers_region_idx ON public.customers USING btree (region)",
+      "scans": 1
     },
     "public.orders_pkey": {
       "schema": "public",
@@ -116,7 +118,37 @@
       "is_partial": false,
       "method": "btree",
       "size_bytes": 1138688,
-      "definition": "CREATE UNIQUE INDEX orders_pkey ON public.orders USING btree (id)"
+      "definition": "CREATE UNIQUE INDEX orders_pkey ON public.orders USING btree (id)",
+      "scans": 1
+    },
+    "public.orders_status_idx_a": {
+      "schema": "public",
+      "name": "orders_status_idx_a",
+      "table": "public.orders",
+      "columns": [
+        "status"
+      ],
+      "is_unique": false,
+      "is_primary": false,
+      "is_partial": false,
+      "method": "btree",
+      "size_bytes": 344064,
+      "definition": "CREATE INDEX orders_status_idx_a ON public.orders USING btree (status)"
+    },
+    "public.orders_status_idx_b": {
+      "schema": "public",
+      "name": "orders_status_idx_b",
+      "table": "public.orders",
+      "columns": [
+        "status"
+      ],
+      "is_unique": false,
+      "is_primary": false,
+      "is_partial": false,
+      "method": "btree",
+      "size_bytes": 344064,
+      "definition": "CREATE INDEX orders_status_idx_b ON public.orders USING btree (status)",
+      "scans": 2
     },
     "public.orders_status_idx": {
       "schema": "public",
@@ -130,7 +162,8 @@
       "is_partial": false,
       "method": "btree",
       "size_bytes": 131072,
-      "definition": "CREATE INDEX orders_status_idx ON public.orders USING btree (status)"
+      "definition": "CREATE INDEX orders_status_idx ON public.orders USING btree (status)",
+      "scans": 12
     }
   },
   "foreign_keys": [

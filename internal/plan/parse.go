@@ -304,10 +304,13 @@ func buildNode(p *parsedNode, parent *Node, depth int) *Node {
 		WorkersLaunched: p.raw.WorkersLaunched,
 
 		HeapFetches: p.raw.HeapFetches,
+
+		CTEName: p.raw.CTEName,
 	}
 
-	// "CTE Name" is a CTE-Scan-only field; keep it visible under Alias
-	// when the node didn't get a more specific alias.
+	// Keep the original Alias fallback so older consumers that only
+	// check Node.Alias keep working: when a CTE Scan has no query
+	// alias, surface the CTE name there too.
 	if n.NodeType == NodeTypeCTEScan && n.Alias == "" && p.raw.CTEName != "" {
 		n.Alias = p.raw.CTEName
 	}

@@ -1,9 +1,9 @@
 {
   "meta": {
-    "exported_at": "2026-04-24T05:38:57.998216Z",
+    "exported_at": "2026-04-24T10:47:08.462598Z",
     "database": "postgres",
     "server_version": "17.9 (Debian 17.9-1.pgdg13+1)",
-    "dbagent_version": "v0.1.0-dev"
+    "dbagent_version": "v0.4.1-2-g14e883d-dirty"
   },
   "tables": {
     "public.customers": {
@@ -31,7 +31,7 @@
       ],
       "row_estimate": 5000,
       "size_bytes": 458752,
-      "last_analyzed": "2026-04-24T05:38:55.455756Z",
+      "last_analyzed": "2026-04-24T10:47:04.719246Z",
       "last_vacuumed": "0001-01-01T00:00:00Z"
     },
     "public.orders": {
@@ -70,8 +70,30 @@
         }
       ],
       "row_estimate": 50000,
-      "size_bytes": 4186112,
-      "last_analyzed": "2026-04-24T05:38:55.477124Z",
+      "size_bytes": 4874240,
+      "last_analyzed": "2026-04-24T10:47:04.740806Z",
+      "last_vacuumed": "0001-01-01T00:00:00Z"
+    },
+    "public.rule_bloat": {
+      "schema": "public",
+      "name": "rule_bloat",
+      "columns": [
+        {
+          "name": "id",
+          "data_type": "integer",
+          "not_null": true,
+          "position": 1
+        },
+        {
+          "name": "payload",
+          "data_type": "text",
+          "not_null": false,
+          "position": 2
+        }
+      ],
+      "row_estimate": 10,
+      "size_bytes": 26394624,
+      "last_analyzed": "2026-04-24T10:47:08.289653Z",
       "last_vacuumed": "0001-01-01T00:00:00Z"
     },
     "public.rule_orders": {
@@ -109,9 +131,9 @@
           "position": 5
         }
       ],
-      "row_estimate": 500000,
-      "size_bytes": 49684480,
-      "last_analyzed": "2026-04-24T05:38:57.347421Z",
+      "row_estimate": 600000,
+      "size_bytes": 74276864,
+      "last_analyzed": "0001-01-01T00:00:00Z",
       "last_vacuumed": "0001-01-01T00:00:00Z"
     }
   },
@@ -128,7 +150,8 @@
       "is_partial": false,
       "method": "btree",
       "size_bytes": 131072,
-      "definition": "CREATE UNIQUE INDEX customers_pkey ON public.customers USING btree (id)"
+      "definition": "CREATE UNIQUE INDEX customers_pkey ON public.customers USING btree (id)",
+      "scans": 50009
     },
     "public.customers_region_idx": {
       "schema": "public",
@@ -142,7 +165,8 @@
       "is_partial": false,
       "method": "btree",
       "size_bytes": 65536,
-      "definition": "CREATE INDEX customers_region_idx ON public.customers USING btree (region)"
+      "definition": "CREATE INDEX customers_region_idx ON public.customers USING btree (region)",
+      "scans": 1
     },
     "public.orders_pkey": {
       "schema": "public",
@@ -156,7 +180,67 @@
       "is_partial": false,
       "method": "btree",
       "size_bytes": 1138688,
-      "definition": "CREATE UNIQUE INDEX orders_pkey ON public.orders USING btree (id)"
+      "definition": "CREATE UNIQUE INDEX orders_pkey ON public.orders USING btree (id)",
+      "scans": 1
+    },
+    "public.orders_status_idx_a": {
+      "schema": "public",
+      "name": "orders_status_idx_a",
+      "table": "public.orders",
+      "columns": [
+        "status"
+      ],
+      "is_unique": false,
+      "is_primary": false,
+      "is_partial": false,
+      "method": "btree",
+      "size_bytes": 344064,
+      "definition": "CREATE INDEX orders_status_idx_a ON public.orders USING btree (status)"
+    },
+    "public.orders_status_idx_b": {
+      "schema": "public",
+      "name": "orders_status_idx_b",
+      "table": "public.orders",
+      "columns": [
+        "status"
+      ],
+      "is_unique": false,
+      "is_primary": false,
+      "is_partial": false,
+      "method": "btree",
+      "size_bytes": 344064,
+      "definition": "CREATE INDEX orders_status_idx_b ON public.orders USING btree (status)",
+      "scans": 2
+    },
+    "public.rule_bloat_pkey": {
+      "schema": "public",
+      "name": "rule_bloat_pkey",
+      "table": "public.rule_bloat",
+      "columns": [
+        "id"
+      ],
+      "is_unique": true,
+      "is_primary": true,
+      "is_partial": false,
+      "method": "btree",
+      "size_bytes": 2260992,
+      "definition": "CREATE UNIQUE INDEX rule_bloat_pkey ON public.rule_bloat USING btree (id)",
+      "scans": 3
+    },
+    "public.rule_orders_customer_idx": {
+      "schema": "public",
+      "name": "rule_orders_customer_idx",
+      "table": "public.rule_orders",
+      "columns": [
+        "customer_id"
+      ],
+      "is_unique": false,
+      "is_primary": false,
+      "is_partial": false,
+      "method": "btree",
+      "size_bytes": 4284416,
+      "definition": "CREATE INDEX rule_orders_customer_idx ON public.rule_orders USING btree (customer_id)",
+      "scans": 2
     },
     "public.rule_orders_pkey": {
       "schema": "public",
@@ -170,7 +254,51 @@
       "is_partial": false,
       "method": "btree",
       "size_bytes": 13500416,
-      "definition": "CREATE UNIQUE INDEX rule_orders_pkey ON public.rule_orders USING btree (id)"
+      "definition": "CREATE UNIQUE INDEX rule_orders_pkey ON public.rule_orders USING btree (id)",
+      "scans": 12
+    },
+    "public.rule_orders_stale_idx": {
+      "schema": "public",
+      "name": "rule_orders_stale_idx",
+      "table": "public.rule_orders",
+      "columns": [
+        "created_at"
+      ],
+      "is_unique": false,
+      "is_primary": false,
+      "is_partial": false,
+      "method": "btree",
+      "size_bytes": 11952128,
+      "definition": "CREATE INDEX rule_orders_stale_idx ON public.rule_orders USING btree (created_at)"
+    },
+    "public.rule_orders_status_copy_idx": {
+      "schema": "public",
+      "name": "rule_orders_status_copy_idx",
+      "table": "public.rule_orders",
+      "columns": [
+        "status"
+      ],
+      "is_unique": false,
+      "is_primary": false,
+      "is_partial": false,
+      "method": "btree",
+      "size_bytes": 4177920,
+      "definition": "CREATE INDEX rule_orders_status_copy_idx ON public.rule_orders USING btree (status)",
+      "scans": 2
+    },
+    "public.rule_orders_status_idx": {
+      "schema": "public",
+      "name": "rule_orders_status_idx",
+      "table": "public.rule_orders",
+      "columns": [
+        "status"
+      ],
+      "is_unique": false,
+      "is_primary": false,
+      "is_partial": false,
+      "method": "btree",
+      "size_bytes": 4177920,
+      "definition": "CREATE INDEX rule_orders_status_idx ON public.rule_orders USING btree (status)"
     }
   },
   "foreign_keys": [

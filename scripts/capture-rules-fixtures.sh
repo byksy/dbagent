@@ -16,7 +16,7 @@ USER="${DBAGENT_PG_USER:-postgres}"
 
 PSQL=(docker exec -i "$CONTAINER" psql -U "$USER" -d "$DB" -At)
 
-mkdir -p testdata/plans/rules/{hot_node,row_misestimate,filter_removal_ratio,missing_index_on_filter}/
+mkdir -p testdata/plans/rules/{hot_node,row_misestimate,filter_removal_ratio,missing_index_on_filter,cte_cartesian_product,network_overhead,unused_index_hint,duplicate_index,composite_index_extension,table_bloat}/
 
 echo "→ setting up rule-fixtures schema (deterministic seed)"
 "${PSQL[@]}" <<'SQL'
@@ -84,5 +84,72 @@ FROM generate_series(1, 100000) i;
 SQL
 capture row_misestimate positive_100x \
     "SELECT * FROM rule_orders WHERE status = 'shipped'"
+
+# cte_cartesian_product — a correlated nested loop that rescans a CTE
+# per outer row. The MATERIALIZED hint keeps PostgreSQL from inlining
+# it and turning this rule into a no-op on newer planners.
+capture cte_cartesian_product positive \
+    "WITH recent AS MATERIALIZED (SELECT customer_id, sum(amount) s FROM rule_orders GROUP BY customer_id) SELECT r.customer_id, r.s FROM rule_orders o JOIN recent r ON r.customer_id = o.customer_id WHERE o.id < 200"
+capture cte_cartesian_product negative \
+    "WITH one AS (SELECT 1 AS x) SELECT * FROM one"
+
+# network_overhead — SELECT * over 500k rows hits the >=10 MB tier.
+capture network_overhead positive \
+    "SELECT * FROM rule_orders"
+capture network_overhead negative \
+    "SELECT id FROM rule_orders LIMIT 10"
+
+# unused_index_hint — create an index nobody queries, then run a scan
+# on the parent table. The index's pg_stat_user_indexes.idx_scan stays
+# at 0 so the rule fires once the schema is re-exported.
+"${PSQL[@]}" <<'SQL' >/dev/null
+DROP INDEX IF EXISTS rule_orders_stale_idx;
+CREATE INDEX rule_orders_stale_idx ON rule_orders (created_at);
+-- Reset stats so the index looks unused regardless of earlier runs.
+SELECT pg_stat_reset_single_table_counters(oid) FROM pg_class WHERE relname = 'rule_orders';
+SQL
+capture unused_index_hint positive \
+    "SELECT count(*) FROM rule_orders WHERE status = 'shipped'"
+capture unused_index_hint negative \
+    "SELECT count(*) FROM rule_orders WHERE id = 42"
+
+# duplicate_index — two identical indexes on status, plan touches
+# the table so the rule fires.
+"${PSQL[@]}" <<'SQL' >/dev/null
+DROP INDEX IF EXISTS rule_orders_status_idx;
+DROP INDEX IF EXISTS rule_orders_status_copy_idx;
+CREATE INDEX rule_orders_status_idx ON rule_orders (status);
+CREATE INDEX rule_orders_status_copy_idx ON rule_orders (status);
+SQL
+capture duplicate_index positive \
+    "SELECT count(*) FROM rule_orders WHERE status = 'shipped'"
+capture duplicate_index negative \
+    "SELECT count(*) FROM rule_orders WHERE id = 42"
+
+# composite_index_extension — single-column index plus a query that
+# filters on indexed column AND another column (trailing Filter).
+"${PSQL[@]}" <<'SQL' >/dev/null
+DROP INDEX IF EXISTS rule_orders_customer_idx;
+CREATE INDEX rule_orders_customer_idx ON rule_orders (customer_id);
+SQL
+capture composite_index_extension positive \
+    "SELECT * FROM rule_orders WHERE customer_id = 42 AND status = 'shipped'"
+capture composite_index_extension negative \
+    "SELECT * FROM rule_orders WHERE customer_id = 42"
+
+# table_bloat — bloat a scratch table by inserting, deleting, and
+# skipping VACUUM. A Seq Scan that reads many dead pages for few
+# live rows trips the heuristic.
+"${PSQL[@]}" <<'SQL' >/dev/null
+DROP TABLE IF EXISTS rule_bloat;
+CREATE TABLE rule_bloat (id int PRIMARY KEY, payload text);
+INSERT INTO rule_bloat SELECT i, repeat('x', 200) FROM generate_series(1, 100000) i;
+DELETE FROM rule_bloat WHERE id > 10;
+ANALYZE rule_bloat;  -- update stats but NOT vacuum, so dead pages remain
+SQL
+capture table_bloat positive \
+    "SELECT * FROM rule_bloat WHERE id < 1000"
+capture table_bloat negative \
+    "SELECT * FROM rule_orders WHERE id BETWEEN 1 AND 100"
 
 echo "✓ captured $(ls testdata/plans/rules/*/real_*.json 2>/dev/null | wc -l | tr -d ' ') rule fixtures"

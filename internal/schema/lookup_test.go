@@ -210,3 +210,35 @@ func buildSchemaWithFK(indexes []*Index, fks []ForeignKey) *Schema {
 	s.FKeys = fks
 	return s
 }
+
+func TestDuplicateIndexes(t *testing.T) {
+	s := buildSchema(
+		&Index{Name: "orders_cust_idx", Columns: []string{"customer_id"}},
+		&Index{Name: "orders_cust_idx_copy", Columns: []string{"customer_id"}},
+		&Index{Name: "orders_status_idx", Columns: []string{"status"}},
+		// Same columns but different order — must NOT be flagged.
+		&Index{Name: "orders_ab_idx", Columns: []string{"a", "b"}},
+		&Index{Name: "orders_ba_idx", Columns: []string{"b", "a"}},
+		// Partial duplicate — skipped.
+		&Index{Name: "orders_partial_idx", Columns: []string{"status"}, IsPartial: true, WhereExpr: "status='shipped'"},
+	)
+	groups := s.DuplicateIndexes()
+	if len(groups) != 1 {
+		t.Fatalf("expected 1 duplicate group, got %d: %+v", len(groups), groups)
+	}
+	g := groups[0]
+	if len(g) != 2 {
+		t.Fatalf("expected 2 indexes in group, got %d", len(g))
+	}
+	// Sorted by name — copy comes after original.
+	if g[0].Name != "orders_cust_idx" || g[1].Name != "orders_cust_idx_copy" {
+		t.Errorf("unexpected group order: [%s, %s]", g[0].Name, g[1].Name)
+	}
+}
+
+func TestDuplicateIndexes_EmptySchema(t *testing.T) {
+	s := &Schema{}
+	if got := s.DuplicateIndexes(); got != nil {
+		t.Errorf("empty schema should return nil, got %v", got)
+	}
+}

@@ -1,0 +1,65 @@
+[
+  {
+    "Plan": {
+      "Node Type": "Aggregate",
+      "Strategy": "Hashed",
+      "Startup Cost": 1500.00,
+      "Total Cost": 1501.00,
+      "Plan Rows": 100,
+      "Plan Width": 16,
+      "Actual Startup Time": 120.0,
+      "Actual Total Time": 125.0,
+      "Actual Rows": 100,
+      "Actual Loops": 1,
+      "Group Key": ["customer_id"],
+      "Shared Hit Blocks": 8000,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Plans": [
+        {
+          "Node Type": "Sort",
+          "Parent Relationship": "Outer",
+          "Startup Cost": 1400.00,
+          "Total Cost": 1450.00,
+          "Plan Rows": 500000,
+          "Plan Width": 24,
+          "Actual Startup Time": 100.0,
+          "Actual Total Time": 115.0,
+          "Actual Rows": 500000,
+          "Actual Loops": 1,
+          "Sort Key": ["customer_id", "created_at DESC"],
+          "Sort Method": "quicksort",
+          "Sort Space Type": "Memory",
+          "Sort Space Used": 4096,
+          "Shared Hit Blocks": 8000,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0,
+          "Plans": [
+            {
+              "Node Type": "Seq Scan",
+              "Parent Relationship": "Outer",
+              "Relation Name": "orders",
+              "Alias": "orders",
+              "Startup Cost": 0.00,
+              "Total Cost": 900.00,
+              "Plan Rows": 500000,
+              "Plan Width": 24,
+              "Actual Startup Time": 0.05,
+              "Actual Total Time": 45.0,
+              "Actual Rows": 500000,
+              "Actual Loops": 1,
+              "Shared Hit Blocks": 8000,
+              "Shared Read Blocks": 0,
+              "Shared Dirtied Blocks": 0,
+              "Shared Written Blocks": 0
+            }
+          ]
+        }
+      ]
+    },
+    "Planning Time": 0.3,
+    "Execution Time": 126.0
+  }
+]

@@ -82,6 +82,12 @@ type Node struct {
 
 	HeapFetches int64 `json:"heap_fetches,omitempty"`
 
+	// CTEName is the "CTE Name" JSON field on CTE Scan nodes — the
+	// name as declared in the WITH clause, independent of any query
+	// alias. Stage 5 rules (cte_cartesian_product) surface this to
+	// keep findings readable even when the caller aliased the CTE.
+	CTEName string `json:"cte_name,omitempty"`
+
 	SubplanName string `json:"subplan_name,omitempty"`
 
 	Extra map[string]any `json:"extra,omitempty"`

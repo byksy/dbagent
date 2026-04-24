@@ -35,6 +35,9 @@ func TestExtractFilterColumns(t *testing.T) {
 		{"((a = 1) OR (b = 2))", []string{"a", "b"}},
 		{"(((a = 1) AND (b = 2)) OR (c = 3))", []string{"a", "b", "c"}},
 		{"((customer_id >= 1) AND (customer_id <= 200) AND (status = 'shipped'::text))", []string{"customer_id", "status"}},
+		// LIKE / ILIKE operators (~~, ~~*, !~~, !~~*).
+		{"(name ~~ 'A%'::text)", []string{"name"}},
+		{"(name !~~* 'foo%'::text)", []string{"name"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.filter, func(t *testing.T) {
@@ -65,6 +68,51 @@ func TestFirstRelationName(t *testing.T) {
 	}
 	if got := FirstRelationName(nil); got != "" {
 		t.Errorf("FirstRelationName(nil) = %q, want empty", got)
+	}
+}
+
+func TestHumanBytes(t *testing.T) {
+	tests := []struct {
+		in   int64
+		want string
+	}{
+		{0, "0 B"},
+		{512, "512 B"},
+		{1024, "1.0 kB"},
+		{1_500, "1.5 kB"},
+		{1_048_576, "1.0 MB"},
+		{64_000_000, "61.0 MB"},
+		{1_073_741_824, "1.0 GB"},
+		{2 * 1_073_741_824, "2.0 GB"},
+		{-2048, "-2.0 kB"},
+	}
+	for _, tt := range tests {
+		if got := humanBytes(tt.in); got != tt.want {
+			t.Errorf("humanBytes(%d) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestBloatFactor(t *testing.T) {
+	tests := []struct {
+		name                   string
+		blocks, rows, width    int64
+		wantMin, wantMax       float64
+	}{
+		{"zero blocks", 0, 100, 100, 0, 0},
+		{"zero rows", 1000, 0, 100, 0, 0},
+		{"healthy scan", 10, 1000, 100, 0.5, 1.5},          // 1000 rows × 100B fits ~10 pages
+		{"bloated scan", 4412, 100, 100, 100, 10_000},      // massive over-read
+		{"wide rows keep factor sane", 100, 100, 8_192, 0.9, 1.1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := bloatFactor(tt.blocks, tt.rows, tt.width)
+			if got < tt.wantMin || got > tt.wantMax {
+				t.Errorf("bloatFactor(%d,%d,%d) = %v, want in [%v, %v]",
+					tt.blocks, tt.rows, tt.width, got, tt.wantMin, tt.wantMax)
+			}
+		})
 	}
 }
 
