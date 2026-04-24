@@ -30,7 +30,7 @@ func newTopCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().IntVar(&f.limit, "limit", 0, "number of queries to show (default: from config)")
-	cmd.Flags().StringVar(&f.orderBy, "order-by", "", "order by: total|mean|calls (default: from config)")
+	cmd.Flags().StringVar(&f.orderBy, "order-by", "", "order by: total|mean|calls|io|cache (default: from config)")
 	return cmd
 }
 

@@ -4,7 +4,7 @@
 
 ## What it is
 
-`dbagent` is a command-line tool for investigating PostgreSQL query performance from your terminal. It reads `pg_stat_statements` to show the top queries on a live server (`dbagent top`), parses `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` output into a typed plan tree, and runs **seventeen** schema-aware diagnostic and prescriptive rules (see [`docs/rules.md`](docs/rules.md)) to point out hot nodes, misestimates, missing indexes, CTE-rescan traps, bloat signals, and more (`dbagent analyze`). It can also export a full schema snapshot (`dbagent schema export`) for offline analysis away from the live database. Every invocation is a single command — there is no daemon, no background agent, and nothing is ever written to your database.
+`dbagent` is a command-line tool for investigating PostgreSQL query performance from your terminal. It reads `pg_stat_statements` to show the top queries on a live server (`dbagent top`), produces a colored workload-level snapshot with progress bars and recommendations (`dbagent stats`), parses `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` output into a typed plan tree, and runs **seventeen** schema-aware diagnostic and prescriptive rules (see [`docs/rules.md`](docs/rules.md)) to point out hot nodes, misestimates, missing indexes, CTE-rescan traps, bloat signals, and more (`dbagent analyze`). It can also export a full schema snapshot (`dbagent schema export`) for offline analysis away from the live database. Every invocation is a single command — there is no daemon, no background agent, and nothing is ever written to your database.
 
 The tool is being built in stages. Upcoming work includes an expanded rule set, `hypopg` simulation, and optional LLM-assisted explanations.
 
@@ -233,12 +233,41 @@ dbagent analyze --plan-file plan.json --schema schema.json
 
 The export carries a timestamp. `analyze --schema` prints a warning when the export is older than 24 hours, but still proceeds.
 
+### `dbagent stats` — workload analysis
+
+Reads `pg_stat_statements` and renders a colored, polished snapshot
+of where time is going across the whole database. Complements
+`analyze`: use `stats` to pick the hottest query, then `analyze` to
+dissect its plan.
+
+```bash
+dbagent stats                                # default: terminal
+dbagent stats --format html > report.html    # shareable report
+dbagent stats --format json | jq '.recommendations'
+dbagent stats --top 20                       # rows per section
+```
+
+Flags:
+
+```
+--format string           terminal (default) | html | json
+--top int                 rows per section (default 10, max 50)
+--since int               filter: stats from last N minutes (0 = all)
+--exclude strings         regex patterns to skip
+--no-color                force plain text even on a TTY
+```
+
+The JSON form is pinned to [`schemas/stats-v1.json`](schemas/stats-v1.json)
+so it's safe to consume from CI pipelines and future dashboards. See
+[`docs/stats.md`](docs/stats.md) for the recommendation catalog and
+interpretation guide.
+
 ### `dbagent version`
 
 Print version and runtime info:
 
 ```
-dbagent v0.1.0-dev
+dbagent v0.5.0
 go1.22.x linux/amd64
 ```
 
@@ -248,7 +277,8 @@ go1.22.x linux/amd64
 2. ✓ Stage 2 — EXPLAIN plan parser, `analyze` command (offline tree/table/JSON rendering + summary)
 3. ✓ Stage 3 — Rule engine: first eight diagnostic and prescriptive findings
 4. ✓ Stage 4 — Schema introspection, `schema` + `schema export` commands, schema-aware rules, `fk_missing_index` finding
-5. ✓ **Stage 5 — Expanded rule catalog to 17 rules + `docs/decisions.md`** *(current — see [`docs/rules.md`](docs/rules.md))*
+5. ✓ Stage 5 — Expanded rule catalog to 17 rules + `docs/decisions.md`
+5.5. ✓ **Stage 5.5 — `dbagent stats` workload analysis with colored terminal / HTML / JSON output** *(current — see [`docs/stats.md`](docs/stats.md))*
 6. Stage 6 — Output formats (JSON, Markdown) and shareable reports
 7. Stage 7 — Homebrew, precompiled binaries (GoReleaser + GitHub Actions)
 8. Stage 8 — hypopg integration for index simulation

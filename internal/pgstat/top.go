@@ -27,18 +27,31 @@ type QueryStat struct {
 	SharedBlksRead int64
 }
 
-// allowedOrderBy maps the public OrderBy option to the corresponding
-// pg_stat_statements column. Keep this as a whitelist — user-supplied
-// strings must never be interpolated into SQL directly.
+// allowedOrderBy maps the public OrderBy option to the ORDER BY
+// expression. Must stay a whitelist — user input never reaches SQL
+// verbatim. Stage 5.5 adds "io" (shared_blks_read) and "cache"
+// (worst cache hit ratio first) to complement `dbagent stats`.
 var allowedOrderBy = map[string]string{
 	"total": "total_exec_time",
 	"mean":  "mean_exec_time",
 	"calls": "calls",
+	"io":    "shared_blks_read",
+	"cache": "CASE WHEN (shared_blks_hit + shared_blks_read) = 0 THEN 1.0 ELSE shared_blks_hit::float / (shared_blks_hit + shared_blks_read) END",
 }
 
-// topQueryTemplate is the base SQL for reading the top N queries. The
-// ORDER BY column is substituted from allowedOrderBy; the LIMIT is a
-// parameterized placeholder.
+// orderDirection returns the trailing ASC / DESC for each allowed
+// sort key. "cache" wants ASC — worst ratios come first.
+var orderDirection = map[string]string{
+	"total": "DESC",
+	"mean":  "DESC",
+	"calls": "DESC",
+	"io":    "DESC",
+	"cache": "ASC",
+}
+
+// topQueryTemplate is the base SQL for reading the top N queries.
+// The ORDER BY expression is substituted from allowedOrderBy +
+// orderDirection; the LIMIT is a parameterised placeholder.
 const topQueryTemplate = `SELECT
     queryid,
     query,
@@ -51,7 +64,7 @@ const topQueryTemplate = `SELECT
 FROM pg_stat_statements
 WHERE query NOT ILIKE '%%pg_stat_statements%%'
   AND query NOT ILIKE '%%pg_extension%%'
-ORDER BY %s DESC
+ORDER BY %s %s
 LIMIT $1`
 
 // buildTopQuery returns the SQL for TopQueries given an OrderBy option.
@@ -59,9 +72,10 @@ LIMIT $1`
 func buildTopQuery(orderBy string) (string, error) {
 	col, ok := allowedOrderBy[orderBy]
 	if !ok {
-		return "", fmt.Errorf("pgstat: invalid order_by %q, expected one of [total, mean, calls]", orderBy)
+		return "", fmt.Errorf("pgstat: invalid order_by %q, expected one of [total, mean, calls, io, cache]", orderBy)
 	}
-	return fmt.Sprintf(topQueryTemplate, col), nil
+	dir := orderDirection[orderBy]
+	return fmt.Sprintf(topQueryTemplate, col, dir), nil
 }
 
 // TopQueries returns up to opts.Limit rows from pg_stat_statements,
