@@ -1,0 +1,17 @@
+{
+  "server_version": "17.2",
+  "database": "readdb",
+  "stats_since": "2026-04-22T00:00:00Z",
+  "queries": [
+    {"queryid": 2001, "query": "SELECT * FROM reports WHERE id = $1", "calls": 500000, "total_exec_time": 2500000, "mean_exec_time": 5.0, "rows": 500000, "shared_blks_hit": 4800000, "shared_blks_read": 200000, "shared_blks_dirtied": 0, "shared_blks_written": 0},
+    {"queryid": 2002, "query": "SELECT count(*) FROM orders", "calls": 30000, "total_exec_time": 900000, "mean_exec_time": 30.0, "rows": 30000, "shared_blks_hit": 1200000, "shared_blks_read": 50000, "shared_blks_dirtied": 0, "shared_blks_written": 0},
+    {"queryid": 2003, "query": "SELECT avg(amount) FROM rule_orders WHERE status = $1", "calls": 18000, "total_exec_time": 720000, "mean_exec_time": 40.0, "rows": 18000, "shared_blks_hit": 900000, "shared_blks_read": 20000, "shared_blks_dirtied": 0, "shared_blks_written": 0},
+    {"queryid": 2004, "query": "SELECT name FROM products WHERE category_id = $1", "calls": 60000, "total_exec_time": 420000, "mean_exec_time": 7.0, "rows": 2400000, "shared_blks_hit": 780000, "shared_blks_read": 12000, "shared_blks_dirtied": 0, "shared_blks_written": 0},
+    {"queryid": 2005, "query": "SELECT json_build_object('id', id, 'name', name) FROM customers WHERE region = $1", "calls": 22000, "total_exec_time": 330000, "mean_exec_time": 15.0, "rows": 44000, "shared_blks_hit": 600000, "shared_blks_read": 8000, "shared_blks_dirtied": 0, "shared_blks_written": 0},
+    {"queryid": 2006, "query": "UPDATE reports_seen SET last = now() WHERE report_id = $1", "calls": 2000, "total_exec_time": 80000, "mean_exec_time": 40.0, "rows": 2000, "shared_blks_hit": 40000, "shared_blks_read": 1200, "shared_blks_dirtied": 2000, "shared_blks_written": 0},
+    {"queryid": 2007, "query": "SELECT * FROM audit_log ORDER BY created_at DESC LIMIT 50", "calls": 4500, "total_exec_time": 54000, "mean_exec_time": 12.0, "rows": 225000, "shared_blks_hit": 180000, "shared_blks_read": 2000, "shared_blks_dirtied": 0, "shared_blks_written": 0},
+    {"queryid": 2008, "query": "SELECT 1 FROM sessions WHERE token = $1", "calls": 3000000, "total_exec_time": 300000, "mean_exec_time": 0.1, "rows": 3000000, "shared_blks_hit": 9000000, "shared_blks_read": 10000, "shared_blks_dirtied": 0, "shared_blks_written": 0},
+    {"queryid": 2009, "query": "WITH t AS (SELECT user_id, count(*) c FROM events GROUP BY user_id) SELECT * FROM t WHERE c > $1", "calls": 300, "total_exec_time": 120000, "mean_exec_time": 400.0, "rows": 3000, "shared_blks_hit": 40000, "shared_blks_read": 5000, "shared_blks_dirtied": 0, "shared_blks_written": 0},
+    {"queryid": 2010, "query": "SELECT id FROM users WHERE email = $1", "calls": 900000, "total_exec_time": 450000, "mean_exec_time": 0.5, "rows": 900000, "shared_blks_hit": 1800000, "shared_blks_read": 15000, "shared_blks_dirtied": 0, "shared_blks_written": 0}
+  ]
+}

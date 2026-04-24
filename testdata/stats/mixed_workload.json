@@ -1,0 +1,17 @@
+{
+  "server_version": "17.2",
+  "database": "mixeddb",
+  "stats_since": "2026-04-23T12:00:00Z",
+  "queries": [
+    {"queryid": 3001, "query": "SELECT * FROM products WHERE id = $1", "calls": 250000, "total_exec_time": 750000, "mean_exec_time": 3.0, "rows": 250000, "shared_blks_hit": 2400000, "shared_blks_read": 100000, "shared_blks_dirtied": 0, "shared_blks_written": 0},
+    {"queryid": 3002, "query": "UPDATE inventory SET stock = stock - 1 WHERE product_id = $1", "calls": 180000, "total_exec_time": 540000, "mean_exec_time": 3.0, "rows": 180000, "shared_blks_hit": 1200000, "shared_blks_read": 60000, "shared_blks_dirtied": 180000, "shared_blks_written": 0},
+    {"queryid": 3003, "query": "INSERT INTO audit (entity, action, payload) VALUES ($1, $2, $3)", "calls": 320000, "total_exec_time": 480000, "mean_exec_time": 1.5, "rows": 320000, "shared_blks_hit": 1800000, "shared_blks_read": 40000, "shared_blks_dirtied": 200000, "shared_blks_written": 0},
+    {"queryid": 3004, "query": "SELECT count(*) FROM jobs WHERE status = $1", "calls": 40000, "total_exec_time": 280000, "mean_exec_time": 7.0, "rows": 40000, "shared_blks_hit": 550000, "shared_blks_read": 18000, "shared_blks_dirtied": 0, "shared_blks_written": 0},
+    {"queryid": 3005, "query": "DELETE FROM logs WHERE ts < $1", "calls": 1200, "total_exec_time": 240000, "mean_exec_time": 200.0, "rows": 60000, "shared_blks_hit": 82000, "shared_blks_read": 4200, "shared_blks_dirtied": 60000, "shared_blks_written": 0},
+    {"queryid": 3006, "query": "SELECT a.* FROM accounts a JOIN balances b ON b.account_id = a.id WHERE a.tier = $1", "calls": 8500, "total_exec_time": 210000, "mean_exec_time": 24.7, "rows": 425000, "shared_blks_hit": 280000, "shared_blks_read": 7800, "shared_blks_dirtied": 0, "shared_blks_written": 0},
+    {"queryid": 3007, "query": "UPDATE events SET processed = true WHERE id = ANY($1::int[])", "calls": 12000, "total_exec_time": 168000, "mean_exec_time": 14.0, "rows": 300000, "shared_blks_hit": 230000, "shared_blks_read": 5200, "shared_blks_dirtied": 22000, "shared_blks_written": 0},
+    {"queryid": 3008, "query": "SELECT distinct category FROM products", "calls": 50, "total_exec_time": 120000, "mean_exec_time": 2400.0, "rows": 1250, "shared_blks_hit": 6000, "shared_blks_read": 3000, "shared_blks_dirtied": 0, "shared_blks_written": 0},
+    {"queryid": 3009, "query": "INSERT INTO notifications (user_id, kind, body) VALUES ($1, $2, $3) RETURNING id", "calls": 50000, "total_exec_time": 100000, "mean_exec_time": 2.0, "rows": 50000, "shared_blks_hit": 350000, "shared_blks_read": 5000, "shared_blks_dirtied": 30000, "shared_blks_written": 0},
+    {"queryid": 3010, "query": "SELECT id FROM sessions WHERE token = $1 AND expires_at > now()", "calls": 2000000, "total_exec_time": 200000, "mean_exec_time": 0.1, "rows": 2000000, "shared_blks_hit": 6000000, "shared_blks_read": 8000, "shared_blks_dirtied": 0, "shared_blks_written": 0}
+  ]
+}

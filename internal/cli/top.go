@@ -15,8 +15,9 @@ import (
 
 // topFlags holds the "top" command's flag values.
 type topFlags struct {
-	limit   int
-	orderBy string
+	limit         int
+	orderBy       string
+	includeSystem bool
 }
 
 // newTopCmd builds the "top" subcommand.
@@ -30,7 +31,8 @@ func newTopCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().IntVar(&f.limit, "limit", 0, "number of queries to show (default: from config)")
-	cmd.Flags().StringVar(&f.orderBy, "order-by", "", "order by: total|mean|calls (default: from config)")
+	cmd.Flags().StringVar(&f.orderBy, "order-by", "", "order by: total|mean|calls|io|cache (default: from config)")
+	cmd.Flags().BoolVar(&f.includeSystem, "include-system", false, "include pg_catalog / SET / SHOW / VACUUM / ANALYZE queries (excluded by default)")
 	return cmd
 }
 
@@ -48,8 +50,9 @@ func runTop(cmd *cobra.Command, f *topFlags) error {
 	}
 
 	opts := pgstat.TopOptions{
-		Limit:   cfg.Output.Limit,
-		OrderBy: cfg.Output.OrderBy,
+		Limit:         cfg.Output.Limit,
+		OrderBy:       cfg.Output.OrderBy,
+		IncludeSystem: f.includeSystem,
 	}
 	if f.limit != 0 {
 		opts.Limit = f.limit

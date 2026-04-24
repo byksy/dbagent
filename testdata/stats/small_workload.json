@@ -1,0 +1,127 @@
+{
+  "server_version": "17.2",
+  "database": "mydb",
+  "stats_since": "2026-04-23T08:00:00Z",
+  "queries": [
+    {
+      "queryid": 1001,
+      "query": "SELECT * FROM orders WHERE customer_id = $1",
+      "calls": 124831,
+      "total_exec_time": 2925000,
+      "mean_exec_time": 23.4,
+      "rows": 2496620,
+      "shared_blks_hit": 892030,
+      "shared_blks_read": 124880,
+      "shared_blks_dirtied": 0,
+      "shared_blks_written": 0
+    },
+    {
+      "queryid": 1002,
+      "query": "UPDATE users SET last_seen_at = $1, login_count = login_count + 1 WHERE id = $2",
+      "calls": 8213,
+      "total_exec_time": 1160000,
+      "mean_exec_time": 141.2,
+      "rows": 8213,
+      "shared_blks_hit": 480000,
+      "shared_blks_read": 12000,
+      "shared_blks_dirtied": 32000,
+      "shared_blks_written": 0
+    },
+    {
+      "queryid": 1003,
+      "query": "SELECT id, name FROM products WHERE category_id = $1 AND active = true",
+      "calls": 45201,
+      "total_exec_time": 845000,
+      "mean_exec_time": 18.7,
+      "rows": 200000,
+      "shared_blks_hit": 720000,
+      "shared_blks_read": 30000,
+      "shared_blks_dirtied": 0,
+      "shared_blks_written": 0
+    },
+    {
+      "queryid": 1004,
+      "query": "INSERT INTO events (kind, payload, created_at) VALUES ($1, $2, $3)",
+      "calls": 300000,
+      "total_exec_time": 660000,
+      "mean_exec_time": 2.2,
+      "rows": 300000,
+      "shared_blks_hit": 900000,
+      "shared_blks_read": 5000,
+      "shared_blks_dirtied": 120000,
+      "shared_blks_written": 0
+    },
+    {
+      "queryid": 1005,
+      "query": "SELECT count(*) FROM archive_orders WHERE created_at > $1",
+      "calls": 820,
+      "total_exec_time": 420000,
+      "mean_exec_time": 512.1,
+      "rows": 820,
+      "shared_blks_hit": 5000,
+      "shared_blks_read": 48000,
+      "shared_blks_dirtied": 0,
+      "shared_blks_written": 0
+    },
+    {
+      "queryid": 1006,
+      "query": "SELECT * FROM pg_stat_activity",
+      "calls": 2500,
+      "total_exec_time": 250,
+      "mean_exec_time": 0.1,
+      "rows": 2500,
+      "shared_blks_hit": 0,
+      "shared_blks_read": 0,
+      "shared_blks_dirtied": 0,
+      "shared_blks_written": 0
+    },
+    {
+      "queryid": 1007,
+      "query": "DELETE FROM sessions WHERE expires_at < now()",
+      "calls": 120,
+      "total_exec_time": 84000,
+      "mean_exec_time": 700.0,
+      "rows": 24000,
+      "shared_blks_hit": 22000,
+      "shared_blks_read": 800,
+      "shared_blks_dirtied": 5000,
+      "shared_blks_written": 0
+    },
+    {
+      "queryid": 1008,
+      "query": "SELECT 1",
+      "calls": 400000,
+      "total_exec_time": 1200,
+      "mean_exec_time": 0.003,
+      "rows": 400000,
+      "shared_blks_hit": 0,
+      "shared_blks_read": 0,
+      "shared_blks_dirtied": 0,
+      "shared_blks_written": 0
+    },
+    {
+      "queryid": 1009,
+      "query": "SELECT u.id, u.email FROM users u JOIN orders o ON o.customer_id = u.id WHERE o.status = $1",
+      "calls": 1200,
+      "total_exec_time": 180000,
+      "mean_exec_time": 150.0,
+      "rows": 60000,
+      "shared_blks_hit": 350000,
+      "shared_blks_read": 12000,
+      "shared_blks_dirtied": 0,
+      "shared_blks_written": 0
+    },
+    {
+      "queryid": 1010,
+      "query": "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_tmp ON tmp(t)",
+      "calls": 1,
+      "total_exec_time": 4000,
+      "mean_exec_time": 4000.0,
+      "rows": 0,
+      "shared_blks_hit": 0,
+      "shared_blks_read": 0,
+      "shared_blks_dirtied": 0,
+      "shared_blks_written": 0
+    }
+  ]
+}

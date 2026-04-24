@@ -1,0 +1,80 @@
+┌─ Database Overview ──────────────────────────────────────────────────────────┐
+│ Database:     mydb (PostgreSQL 17.2)                                         │
+│ Snapshot:     2026-04-24 13:52:15 UTC                                        │
+│ Stats since:  2026-04-23 08:00:00 (1d 5h ago)                                │
+│                                                                              │
+│ Total DB time:   1h 44m                                                      │
+│ Executions:      882,886 across 10 unique queries                            │
+│                                                                              │
+│ Read/write:   reads 70% · writes 30% · other 0%                              │
+│ Cache hit:    ███████████████████████████████░░  93.5%                       │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌─ Top Queries by Total Time ──────────────────────────────────────────────────┐
+│ #   calls      mean      total     share             query                   │
+│ 1   124,831    23.4ms    48m45s    ████░░░░░  46.6%  SELECT * FROM order…    │
+│ 2   8,213      141.2ms   19m20s    ██░░░░░░░  18.5%  UPDATE users SET la…    │
+│ 3   45,201     18.7ms    14m05s    █░░░░░░░░  13.5%  SELECT id, name FRO…    │
+│ 4   300,000    2.2ms     11m00s    █░░░░░░░░  10.5%  INSERT INTO events …    │
+│ 5   820        512.1ms   7m00s     █░░░░░░░░   6.7%  SELECT count(*) FRO…    │
+│ 6   1,200      150.0ms   3m00s     ░░░░░░░░░   2.9%  SELECT u.id, u.emai…    │
+│ 7   120        700.0ms   1m24s     ░░░░░░░░░   1.3%  DELETE FROM session…    │
+│ 8   1          4.0s      4.0s      ░░░░░░░░░   0.1%  CREATE INDEX CONCUR…    │
+│ 9   400,000    0.0ms     1.2s      ░░░░░░░░░   0.0%  SELECT 1                │
+│ 10  2,500      0.1ms     250.0ms   ░░░░░░░░░   0.0%  SELECT * FROM pg_st…    │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌─ Top Queries by Call Count ──────────────────────────────────────────────────┐
+│ #   calls        mean      total      query                                  │
+│ 1   400,000      0.0ms     1.2s       SELECT 1                               │
+│ 2   300,000      2.2ms     11m00s     INSERT INTO events (kind, payload, …   │
+│ 3   124,831      23.4ms    48m45s     SELECT * FROM orders WHERE customer…   │
+│ 4   45,201       18.7ms    14m05s     SELECT id, name FROM products WHERE…   │
+│ 5   8,213        141.2ms   19m20s     UPDATE users SET last_seen_at = $1,…   │
+│ 6   2,500        0.1ms     250.0ms    SELECT * FROM pg_stat_activity         │
+│ 7   1,200        150.0ms   3m00s      SELECT u.id, u.email FROM users u J…   │
+│ 8   820          512.1ms   7m00s      SELECT count(*) FROM archive_orders…   │
+│ 9   120          700.0ms   1m24s      DELETE FROM sessions WHERE expires_…   │
+│ 10  1            4.0s      4.0s       CREATE INDEX CONCURRENTLY IF NOT EX…   │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌─ Top Queries by I/O Reads ───────────────────────────────────────────────────┐
+│ #   reads      hits       ratio    total_time  query                         │
+│ 1   124,880    892,030    87.7%    48m45s      SELECT * FROM orders WH…      │
+│ 2   48,000     5,000      9.4%     7m00s       SELECT count(*) FROM ar…      │
+│ 3   30,000     720,000    96.0%    14m05s      SELECT id, name FROM pr…      │
+│ 4   12,000     480,000    97.6%    19m20s      UPDATE users SET last_s…      │
+│ 5   12,000     350,000    96.7%    3m00s       SELECT u.id, u.email FR…      │
+│ 6   5,000      900,000    99.4%    11m00s      INSERT INTO events (kin…      │
+│ 7   800        22,000     96.5%    1m24s       DELETE FROM sessions WH…      │
+│ 8   0          0          —        250.0ms     SELECT * FROM pg_stat_a…      │
+│ 9   0          0          —        1.2s        SELECT 1                      │
+│ 10  0          0          —        4.0s        CREATE INDEX CONCURRENT…      │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌─ Top Queries by Low Cache Hit ───────────────────────────────────────────────┐
+│ #   reads      hits       ratio     query                                    │
+│ 1   48,000     5,000      9.4%      SELECT count(*) FROM archive_orders…     │
+│ 2   124,880    892,030    87.7%     SELECT * FROM orders WHERE customer…     │
+│ 3   30,000     720,000    96.0%     SELECT id, name FROM products WHERE…     │
+│ 4   800        22,000     96.5%     DELETE FROM sessions WHERE expires_…     │
+│ 5   12,000     350,000    96.7%     SELECT u.id, u.email FROM users u J…     │
+│ 6   12,000     480,000    97.6%     UPDATE users SET last_seen_at = $1,…     │
+│ 7   5,000      900,000    99.4%     INSERT INTO events (kind, payload, …     │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌─ Recommendations ────────────────────────────────────────────────────────────┐
+│ ⚠  [WARNING]  Single query dominates DB time                                 │
+│              One query accounts for 47% of total database time. Consider     │
+│              deep analysis with 'dbagent analyze'.                           │
+│              → dbagent analyze --queryid 1001  # (capture plan first)        │
+│                                                                              │
+│ ⚠  [WARNING]  Query with very low cache hit ratio                            │
+│              Query has cache hit ratio of 9.4%. Either it scans a large cold │
+│              table or an index is missing.                                   │
+│                                                                              │
+│ ℹ  [INFO]  High-frequency, low-latency query                                 │
+│              Query executed 400,000 times with 0.00ms mean. Consider         │
+│              caching, batching, or connection pooling.                       │
+└──────────────────────────────────────────────────────────────────────────────┘
+

@@ -1,0 +1,142 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/byksy/dbagent/blob/main/schemas/stats-v1.json",
+  "title": "dbagent stats output (v1)",
+  "description": "Snapshot of PostgreSQL workload metrics derived from pg_stat_statements. Produced by `dbagent stats --format json`. Field names are stable for v1; breaking changes require a new schema version (stats-v2).",
+  "type": "object",
+  "required": [
+    "meta",
+    "total_queries",
+    "total_executions",
+    "total_time_ms",
+    "read_time_ms",
+    "write_time_ms",
+    "cache_hit_ratio",
+    "top_by_total_time",
+    "top_by_call_count",
+    "top_by_mean_time",
+    "top_by_io",
+    "top_by_low_cache",
+    "recommendations"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Relative or absolute reference to the schema file."
+    },
+    "meta": { "$ref": "#/definitions/Meta" },
+    "total_queries": {
+      "type": "integer",
+      "description": "Number of distinct queries tracked in pg_stat_statements after exclusion filters."
+    },
+    "total_executions": {
+      "type": "integer",
+      "description": "Sum of `calls` across all tracked queries."
+    },
+    "total_time_ms": {
+      "type": "number",
+      "description": "Sum of `total_exec_time` across all tracked queries, in milliseconds."
+    },
+    "read_time_ms": {
+      "type": "number",
+      "description": "Sum of total_exec_time for SELECT-like queries, in milliseconds."
+    },
+    "write_time_ms": {
+      "type": "number",
+      "description": "Sum of total_exec_time for INSERT/UPDATE/DELETE/MERGE queries, in milliseconds."
+    },
+    "cache_hit_ratio": {
+      "type": "number",
+      "description": "Overall shared-buffer cache hit ratio, 0..1. -1 when no buffer data is available."
+    },
+    "top_by_total_time": { "type": "array", "items": { "$ref": "#/definitions/QueryGroup" } },
+    "top_by_call_count": { "type": "array", "items": { "$ref": "#/definitions/QueryGroup" } },
+    "top_by_mean_time": { "type": "array", "items": { "$ref": "#/definitions/QueryGroup" } },
+    "top_by_io": { "type": "array", "items": { "$ref": "#/definitions/QueryGroup" } },
+    "top_by_low_cache": { "type": "array", "items": { "$ref": "#/definitions/QueryGroup" } },
+    "recommendations": { "type": "array", "items": { "$ref": "#/definitions/Recommendation" } }
+  },
+  "definitions": {
+    "Meta": {
+      "type": "object",
+      "required": ["database", "server_version", "snapshot_at", "dbagent_version", "schema_version"],
+      "properties": {
+        "database": { "type": "string" },
+        "server_version": { "type": "string" },
+        "snapshot_at": { "type": "string", "format": "date-time" },
+        "stats_since": { "type": "string", "format": "date-time" },
+        "dbagent_version": { "type": "string" },
+        "schema_version": {
+          "type": "string",
+          "enum": ["stats-v1"],
+          "description": "Pinned to `stats-v1` for any document validating against this schema."
+        }
+      }
+    },
+    "QueryGroup": {
+      "type": "object",
+      "required": [
+        "rank",
+        "query_id",
+        "calls",
+        "total_time_ms",
+        "mean_time_ms",
+        "rows",
+        "shared_blks_hit",
+        "shared_blks_read",
+        "cache_hit_ratio",
+        "pct_of_total",
+        "query_text",
+        "query_kind"
+      ],
+      "properties": {
+        "rank": { "type": "integer", "minimum": 1 },
+        "query_id": { "type": "integer" },
+        "calls": { "type": "integer" },
+        "total_time_ms": { "type": "number" },
+        "mean_time_ms": { "type": "number" },
+        "rows": { "type": "integer" },
+        "shared_blks_hit": { "type": "integer" },
+        "shared_blks_read": { "type": "integer" },
+        "cache_hit_ratio": {
+          "type": "number",
+          "description": "0..1 ratio or -1 when no buffer data is available."
+        },
+        "pct_of_total": {
+          "type": "number",
+          "description": "Share of the workload's total_time_ms, 0..1."
+        },
+        "query_text": { "type": "string" },
+        "query_kind": {
+          "type": "string",
+          "enum": ["read", "write", "ddl", "other"]
+        }
+      }
+    },
+    "Recommendation": {
+      "type": "object",
+      "required": ["id", "severity", "title", "message"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable machine-readable identifier (lower_snake_case)."
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["info", "warning", "critical"]
+        },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Machine-readable supporting facts. Shape varies per recommendation."
+        },
+        "action": {
+          "type": "string",
+          "description": "Optional suggested next step (CLI command, operational hint)."
+        }
+      }
+    }
+  }
+}

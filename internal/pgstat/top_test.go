@@ -40,12 +40,13 @@ func TestBuildTopQuery_OrderBy(t *testing.T) {
 		{"total", "total", "total_exec_time", false},
 		{"mean", "mean", "mean_exec_time", false},
 		{"calls", "calls", "calls", false},
+		{"io", "io", "shared_blks_read", false},
 		{"invalid", "rows", "", true},
 		{"empty", "", "", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sql, err := buildTopQuery(tt.orderBy)
+			sql, err := buildTopQuery(tt.orderBy, false)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got nil (sql=%q)", sql)
@@ -65,9 +66,24 @@ func TestBuildTopQuery_OrderBy(t *testing.T) {
 	}
 }
 
+func TestBuildTopQuery_Cache_ASC(t *testing.T) {
+	sql, err := buildTopQuery("cache", false)
+	if err != nil {
+		t.Fatalf("buildTopQuery(cache): %v", err)
+	}
+	// Worst cache ratios come first — ASC ordering with the CASE
+	// expression divides hit/(hit+read) cleanly.
+	if !strings.Contains(sql, "ASC") {
+		t.Errorf("cache ordering should use ASC, got:\n%s", sql)
+	}
+	if !strings.Contains(sql, "shared_blks_hit") || !strings.Contains(sql, "shared_blks_read") {
+		t.Errorf("cache ordering should reference hit/read columns, got:\n%s", sql)
+	}
+}
+
 func TestBuildTopQuery_NoUserInputInterpolation(t *testing.T) {
 	// A malicious order_by must not sneak into the generated SQL.
-	_, err := buildTopQuery("total_exec_time; DROP TABLE users--")
+	_, err := buildTopQuery("total_exec_time; DROP TABLE users--", false)
 	if err == nil {
 		t.Fatalf("expected rejection of non-whitelisted order_by")
 	}

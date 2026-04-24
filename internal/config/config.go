@@ -74,10 +74,14 @@ var validSSLModes = map[string]struct{}{
 }
 
 // validOrderBy enumerates accepted values for output.order_by.
+// Stage 5.5 widens the set to include the I/O and cache dimensions
+// the stats command also uses.
 var validOrderBy = map[string]struct{}{
 	"total": {},
 	"mean":  {},
 	"calls": {},
+	"io":    {},
+	"cache": {},
 }
 
 // validLogLevels enumerates accepted values for log.level.
@@ -224,7 +228,7 @@ func (c *Config) Validate() error {
 		return fieldErr("output.limit", fmt.Sprint(c.Output.Limit), "must be between 1 and 500")
 	}
 	if _, ok := validOrderBy[c.Output.OrderBy]; !ok {
-		return enumErr("output.order_by", c.Output.OrderBy, []string{"total", "mean", "calls"})
+		return enumErr("output.order_by", c.Output.OrderBy, []string{"total", "mean", "calls", "io", "cache"})
 	}
 	if _, ok := validLogLevels[c.Log.Level]; !ok {
 		return enumErr("log.level", c.Log.Level, []string{"debug", "info", "warn", "error"})
