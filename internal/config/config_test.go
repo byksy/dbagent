@@ -177,3 +177,91 @@ func grepLine(content, needle string) string {
 	}
 	return ""
 }
+
+func TestConfigExists_MissingFile(t *testing.T) {
+	dir := t.TempDir()
+	exists, err := ConfigExists(filepath.Join(dir, "nope.yaml"))
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if exists {
+		t.Errorf("expected exists=false for missing file")
+	}
+}
+
+func TestConfigExists_PresentFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "cfg.yaml")
+	if err := os.WriteFile(path, []byte("database: {}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	exists, err := ConfigExists(path)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if !exists {
+		t.Errorf("expected exists=true for present file")
+	}
+}
+
+func TestConfigExists_Directory(t *testing.T) {
+	// A directory at the config path is user error — we surface it so
+	// `dbagent config show` can print a clearer message than "file not
+	// found".
+	dir := t.TempDir()
+	_, err := ConfigExists(dir)
+	if err == nil {
+		t.Errorf("expected error when path is a directory")
+	}
+}
+
+func TestConfigExists_EmptyPath(t *testing.T) {
+	if _, err := ConfigExists(""); err == nil {
+		t.Errorf("expected error for empty path")
+	}
+}
+
+func TestDeleteConfig_RemovesFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "cfg.yaml")
+	if err := os.WriteFile(path, []byte("database: {}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := DeleteConfig(path); err != nil {
+		t.Fatalf("DeleteConfig: %v", err)
+	}
+	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("expected file to be gone, stat err=%v", err)
+	}
+}
+
+func TestDeleteConfig_IdempotentOnMissing(t *testing.T) {
+	dir := t.TempDir()
+	if err := DeleteConfig(filepath.Join(dir, "nope.yaml")); err != nil {
+		t.Errorf("DeleteConfig on missing file should return nil, got %v", err)
+	}
+}
+
+func TestDeleteConfig_EmptyPath(t *testing.T) {
+	if err := DeleteConfig(""); err == nil {
+		t.Errorf("expected error for empty path")
+	}
+}
+
+func TestMarshal_RedactsPassword(t *testing.T) {
+	c := validConfig()
+	c.Database.Password = "hunter2"
+	out := string(Marshal(c.Redacted()))
+	if strings.Contains(out, "hunter2") {
+		t.Errorf("Marshal(Redacted()) leaked password:\n%s", out)
+	}
+	if !strings.Contains(out, "password: ***") {
+		t.Errorf("Marshal(Redacted()) missing redaction marker:\n%s", out)
+	}
+}
+
+func TestMarshal_NilConfig(t *testing.T) {
+	if got := Marshal(nil); got != nil {
+		t.Errorf("Marshal(nil) = %q, want nil", got)
+	}
+}

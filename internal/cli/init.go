@@ -29,6 +29,7 @@ type initFlags struct {
 	sslmode     string
 	noPrompt    bool
 	check       bool
+	force       bool
 }
 
 // newInitCmd builds the "init" subcommand.
@@ -58,6 +59,7 @@ without modifying anything.`,
 	cmd.Flags().StringVar(&f.sslmode, "sslmode", "", "sslmode: disable|require|verify-ca|verify-full")
 	cmd.Flags().BoolVar(&f.noPrompt, "no-prompt", false, "fail instead of prompting for missing values")
 	cmd.Flags().BoolVar(&f.check, "check", false, "check existing config, do not modify")
+	cmd.Flags().BoolVar(&f.force, "force", false, "overwrite an existing config without prompting")
 
 	return cmd
 }
@@ -113,6 +115,13 @@ func runInit(cmd *cobra.Command, f *initFlags) error {
 	defaults := config.Default()
 	if existing != nil {
 		defaults = existing
+		proceed, err := guardOverwrite(cmd, f, path)
+		if err != nil {
+			return err
+		}
+		if !proceed {
+			return nil
+		}
 	}
 
 	cfg, err := collectConfig(cmd, f, defaults)
@@ -154,6 +163,32 @@ func runInit(cmd *cobra.Command, f *initFlags) error {
 	}
 	printFinalMessage(cmd.OutOrStdout(), path, status.Ready())
 	return nil
+}
+
+// guardOverwrite decides whether an existing config at path may be
+// clobbered. --force always wins. In non-interactive mode (--no-prompt
+// or stdin is not a TTY) we refuse so automation can't silently
+// replace a good config. In interactive mode we prompt; declining
+// exits cleanly (proceed=false, err=nil) so repeated invocations
+// from a script aren't punished with an error status.
+func guardOverwrite(cmd *cobra.Command, f *initFlags, path string) (bool, error) {
+	if f.force {
+		return true, nil
+	}
+	if f.noPrompt || !isTerminal(os.Stdin) {
+		return false, newExitError(ExitUsageError,
+			fmt.Errorf("config already exists at %s; re-run with --force to overwrite", path))
+	}
+	fmt.Fprintf(cmd.ErrOrStderr(), "A config already exists at %s.\n", path)
+	ok, err := confirm(cmd.InOrStdin(), cmd.ErrOrStderr(), "Overwrite it? (y/N):")
+	if err != nil {
+		return false, newExitError(ExitInternal, err)
+	}
+	if !ok {
+		fmt.Fprintln(cmd.OutOrStdout(), "Cancelled. Config unchanged.")
+		return false, nil
+	}
+	return true, nil
 }
 
 // resolvedConfigPath returns the explicit --config path if given,

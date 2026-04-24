@@ -125,6 +125,7 @@ Create or verify the database configuration.
 --sslmode string         sslmode: disable|require|verify-ca|verify-full
 --no-prompt              fail instead of prompting for missing values
 --check                  check existing config, do not modify
+--force                  overwrite an existing config without prompting
 ```
 
 Example — non-interactive init reading the password from the environment:
@@ -263,6 +264,38 @@ The JSON form is pinned to [`schemas/stats-v1.json`](schemas/stats-v1.json)
 so it's safe to consume from CI pipelines and future dashboards. See
 [`docs/stats.md`](docs/stats.md) for the recommendation catalog and
 interpretation guide.
+
+### `dbagent config`
+
+Manage your dbagent configuration without hand-editing the YAML file.
+
+```bash
+# Show current config (password redacted)
+dbagent config show
+
+# Print the config file path (one line to stdout, pipeable)
+dbagent config path
+
+# Delete the config file (prompts for confirmation)
+dbagent config reset
+
+# Delete without prompting — required in CI / non-TTY contexts
+dbagent config reset --force
+```
+
+To create a fresh config interactively, run `dbagent init`. To
+overwrite an existing config non-interactively, combine `init` with
+`--force`:
+
+```bash
+dbagent init --force --no-prompt \
+  --host db.prod --port 5432 --user ro \
+  --database app --password-env DB_PASS --sslmode require
+```
+
+Without `--force`, `init` refuses to clobber an existing config when
+stdin is not a terminal, so automation can't silently replace a good
+config.
 
 ### `dbagent version`
 

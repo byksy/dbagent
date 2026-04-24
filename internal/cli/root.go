@@ -112,6 +112,7 @@ output to suggest optimizations.`,
 	cmd.AddCommand(newAnalyzeCmd())
 	cmd.AddCommand(newSchemaCmd())
 	cmd.AddCommand(newStatsCmd())
+	cmd.AddCommand(newConfigCmd())
 	cmd.AddCommand(newVersionCmd())
 
 	return cmd
