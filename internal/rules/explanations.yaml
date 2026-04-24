@@ -1,5 +1,6 @@
-# Each rule has three blocks. All are plain text; no markdown syntax
-# (markdown rendering happens at the CLI layer, not in this file).
+# Each rule has three blocks. All are plain text — the CLI renderer
+# prints them as-is, no markdown is parsed. Tests reject leading "# ",
+# "> ", and "**" pairs to catch accidental markup.
 
 hot_node:
   what_happened: |
