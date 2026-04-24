@@ -6,8 +6,22 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/byksy/dbagent/internal/plan"
 	"github.com/byksy/dbagent/internal/rules"
 )
+
+// nodeIndex builds a NodeID → *plan.Node lookup so renderers can
+// print a finding's target node with its full label.
+func nodeIndex(p *plan.Plan) map[int]*plan.Node {
+	if p == nil {
+		return nil
+	}
+	idx := make(map[int]*plan.Node)
+	for _, n := range p.AllNodes() {
+		idx[n.ID] = n
+	}
+	return idx
+}
 
 // findingsByNode groups findings by their NodeID and returns both the
 // map and a deterministically-ordered slice of node IDs, so renderers
@@ -71,12 +85,17 @@ func countsBySeverity(findings []rules.Finding) (crit, warn, info int) {
 }
 
 // formatFindingsSection writes the Findings block to w, grouped by
-// node with a trailing summary line. No output if findings is empty.
-func formatFindingsSection(w io.Writer, findings []rules.Finding) error {
+// node with a trailing summary line. The plan argument lets each
+// finding print its target node's full label ("[4] Seq Scan on orders");
+// pass nil and findings will fall back to "[id]" alone.
+// No output when findings is empty.
+func formatFindingsSection(w io.Writer, p *plan.Plan, findings []rules.Finding) error {
 	if len(findings) == 0 {
 		return nil
 	}
 	fmt.Fprintln(w, "Findings")
+
+	idx := nodeIndex(p)
 
 	// Group findings by node; render nodes in Run()'s existing order
 	// (severity-first), keyed by first-appearance NodeID so the block
@@ -96,7 +115,7 @@ func formatFindingsSection(w io.Writer, findings []rules.Finding) error {
 	}
 
 	for _, id := range nodeOrder {
-		writeNodeFindings(w, id, byNode[id])
+		writeNodeFindings(w, id, byNode[id], idx)
 	}
 
 	crit, warn, info := countsBySeverity(findings)
@@ -104,18 +123,16 @@ func formatFindingsSection(w io.Writer, findings []rules.Finding) error {
 	return nil
 }
 
-// writeNodeFindings prints every finding attached to a node. The node
-// header (severity tag + "[id] rule" line) comes once; each finding
-// contributes a message, optional Suggested line, and blank separator.
-func writeNodeFindings(w io.Writer, nodeID int, findings []rules.Finding) {
+// writeNodeFindings prints every finding attached to a node. Each
+// finding gets its own severity tag so mixed-severity groups stay
+// unambiguous. idx is used to render the node's full label.
+func writeNodeFindings(w io.Writer, nodeID int, findings []rules.Finding, idx map[int]*plan.Node) {
 	if len(findings) == 0 {
 		return
 	}
-	// Render each finding with its own severity tag so mixed-severity
-	// groups stay unambiguous. Indent detail lines under the rule name.
+	target := nodeTarget(nodeID, idx)
 	for _, f := range findings {
 		tag := strings.ToUpper(f.Severity.String())
-		target := nodeTarget(nodeID, f)
 		fmt.Fprintf(w, "  %-8s  %s\n", tag, target)
 		fmt.Fprintf(w, "            └─ %s\n", f.RuleID)
 		for _, line := range wrapMessage(f.Message, 6) {
@@ -128,12 +145,19 @@ func writeNodeFindings(w io.Writer, nodeID int, findings []rules.Finding) {
 	}
 }
 
-// nodeTarget describes which node this finding applies to. For
-// plan-level findings (NodeID == 0) we say "plan" instead of inventing
-// a "[0]" reference.
-func nodeTarget(nodeID int, f rules.Finding) string {
+// nodeTarget renders the "where does this finding apply" label for
+// the Findings section. For plan-level findings (NodeID == 0) we use
+// "(plan-level)" so the text reads naturally and can't be confused
+// with a node reference. For node findings we print the same
+// "[ID] NodeType on relation" shape used elsewhere; if the plan
+// lookup fails (e.g., legacy callers passed nil) we degrade to
+// the bare "[ID]".
+func nodeTarget(nodeID int, idx map[int]*plan.Node) string {
 	if nodeID == 0 {
-		return "plan"
+		return "(plan-level)"
+	}
+	if n, ok := idx[nodeID]; ok {
+		return fmt.Sprintf("[%d] %s", nodeID, nodeLabel(n))
 	}
 	return fmt.Sprintf("[%d]", nodeID)
 }

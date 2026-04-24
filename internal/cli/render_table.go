@@ -31,7 +31,7 @@ func renderTable(w io.Writer, p *plan.Plan, s *plan.Summary, findings []rules.Fi
 	writeSummary(w, p, s)
 	if len(findings) > 0 {
 		fmt.Fprintln(w)
-		_ = formatFindingsSection(w, findings)
+		_ = formatFindingsSection(w, p, findings)
 	}
 	return nil
 }

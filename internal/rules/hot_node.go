@@ -14,6 +14,11 @@ const (
 	hotNodeInfoPct     = 0.30
 	hotNodeWarningPct  = 0.50
 	hotNodeCriticalPct = 0.90
+
+	// hotNodeMinTotalMs: a sub-10ms plan has no meaningful "hot
+	// node" — calling anything hot there produces noise on unit
+	// tests, health checks, and trivial lookups.
+	hotNodeMinTotalMs = 10.0
 )
 
 // HotNode flags nodes whose exclusive time dominates the query. It's
@@ -27,6 +32,9 @@ func (*HotNode) Category() Category { return CategoryDiagnostic }
 
 func (r *HotNode) Check(p *plan.Plan) []Finding {
 	if p == nil || p.Root == nil || p.TotalTimeMs <= 0 {
+		return nil
+	}
+	if p.TotalTimeMs < hotNodeMinTotalMs {
 		return nil
 	}
 	var out []Finding

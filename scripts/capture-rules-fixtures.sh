@@ -49,9 +49,13 @@ capture() {
         > "testdata/plans/rules/${rule}/real_${variant}.json"
 }
 
-# hot_node — an aggregation that forces a full scan.
+# hot_node — a forced full scan over all 500k rows with a CPU-heavy
+# predicate so total time clears the 10ms noise gate on any machine.
+# The md5 input avoids timestamptz::text, whose rendering depends on
+# the session's TimeZone/DateStyle GUCs, to keep captures byte-stable
+# across environments.
 capture hot_node positive \
-    "SELECT count(*) FROM rule_orders WHERE amount > 500"
+    "SELECT count(*) FROM rule_orders WHERE amount > 500 AND md5(status || customer_id::text) LIKE 'a%'"
 capture hot_node negative \
     "SELECT * FROM rule_orders WHERE id = 42"
 

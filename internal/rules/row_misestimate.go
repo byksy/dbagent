@@ -14,6 +14,13 @@ const (
 	misestimateInfoFactor     = 10.0
 	misestimateWarningFactor  = 100.0
 	misestimateCriticalFactor = 1000.0
+
+	// Per-node noise gate: a node that ran for less than 1ms AND
+	// produced fewer than 100 rows is too small to matter even with
+	// a big percentage misestimate. This keeps trivial lookups from
+	// generating findings.
+	misestimateMinExclusiveMs = 1.0
+	misestimateMinRowsTotal   = 100
 )
 
 // RowMisestimate flags nodes where the planner's per-loop row
@@ -31,6 +38,11 @@ func (r *RowMisestimate) Check(p *plan.Plan) []Finding {
 	var out []Finding
 	for _, n := range p.AllNodes() {
 		if n.NeverExecuted {
+			continue
+		}
+		// Noise gate: tiny nodes aren't worth flagging even at a
+		// large factor — the absolute impact is negligible.
+		if n.ExclusiveTimeMs() < misestimateMinExclusiveMs && n.ActualRowsTotal() < misestimateMinRowsTotal {
 			continue
 		}
 		factor := n.MisestimateFactor()
