@@ -1,6 +1,6 @@
-Plan (total: 3.4ms, planning: 0.3ms, execution: 3.2ms)
+Plan (total: 3.4ms, planning: 0.3ms, execution: 3.1ms)
 
-[1] Limit  rows=42  time=3.2ms  loops=1
+[1] Limit  rows=42  time=3.1ms  loops=1
     buffers: shared hit=402 read=0
 └─ [2] Sort  rows=42  time=3.1ms  loops=1
     sort_key=o.created_at DESC  method=top-N heapsort  memory=30kB
@@ -21,11 +21,16 @@ Plan (total: 3.4ms, planning: 0.3ms, execution: 3.2ms)
 
 Summary
   Slowest node (exclusive):  [4] Seq Scan on orders o — 1.9ms (56% of total)
-  Biggest row misestimate:   [2] Sort — planned 4,169, actual 42 (99.3× over)
+  Biggest row misestimate:   [2] Sort — planned 4,121, actual 42 (98.1× over)
 
 Findings
   INFO      [4] Seq Scan on orders o
             └─ filter_removal_ratio
                75% of rows read are discarded by filter (37500 rows removed, 12500 kept).
 
-1 findings (1 info)
+  INFO      [4] Seq Scan on orders o
+            └─ table_bloat
+               Scan reads 368 blocks (2.9 MB) for 50000 rows — approximately 60 bytes per row. This may indicate table bloat or dead tuples.
+               Suggested: VACUUM (ANALYZE) orders;
+
+2 findings (2 info)

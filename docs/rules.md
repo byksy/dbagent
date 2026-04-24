@@ -1,6 +1,8 @@
 # Rules
 
-`dbagent analyze` runs eight rules against every parsed plan. Each rule is either **diagnostic** (describes what's wrong) or **prescriptive** (suggests a specific fix). This page lists each rule's conditions, severity tiers, and a sample finding.
+`dbagent analyze` runs seventeen rules against every parsed plan. Each rule is either **diagnostic** (describes what's wrong) or **prescriptive** (suggests a specific fix). This page lists each rule's conditions, severity tiers, and a sample finding.
+
+> **Extraction caveat.** Rules that parse filter, index-cond, or sort-key expressions use regex-based column extraction. This handles common cases (simple comparisons, AND/OR chains, IN clauses) but may miss columns inside complex expressions (nested function calls, CASE/WHEN, arbitrary expression-based conditions). See [`decisions.md`](decisions.md) for why we defer a full SQL parser.
 
 ## Contents
 
@@ -13,6 +15,14 @@
 - [planning_vs_execution](#planning_vs_execution) — prescriptive
 - [worker_shortage](#worker_shortage) — diagnostic
 - [fk_missing_index](#fk_missing_index) — prescriptive (schema-aware, new in v0.4)
+- [cte_cartesian_product](#cte_cartesian_product) — prescriptive (new in v0.5)
+- [network_overhead](#network_overhead) — diagnostic (new in v0.5)
+- [redundant_aggregation](#redundant_aggregation) — prescriptive (new in v0.5)
+- [memoize_opportunity](#memoize_opportunity) — prescriptive (new in v0.5)
+- [unused_index_hint](#unused_index_hint) — diagnostic (schema-aware, new in v0.5)
+- [duplicate_index](#duplicate_index) — prescriptive (schema-aware, new in v0.5)
+- [composite_index_extension](#composite_index_extension) — prescriptive (schema-aware, new in v0.5)
+- [table_bloat](#table_bloat) — prescriptive (new in v0.5)
 
 Rules that compute row ratios always skip `NeverExecuted` nodes, so a never-taken branch cannot inflate a rule's severity.
 
@@ -218,4 +228,142 @@ This rule needs a loaded schema (live fetch or `--schema <file>`). Offline analy
 > Suggested: `CREATE INDEX ON public.payments (order_id);`
 
 **What to do:** create the suggested index. If the FK is a composite, the index must cover the columns in the same order.
+
+---
+
+## cte_cartesian_product
+
+**Category:** Prescriptive · **Severity:** Warning / Critical · *New in v0.5*
+
+Flags `CTE Scan` nodes that are rescanned many times and accumulate significant row work. PostgreSQL ≥ 12 often inlines non-recursive CTEs, but the inlining is conservative — a CTE used as the inner side of a nested loop still reruns per outer row. Converting such a CTE to a JOIN or subquery typically avoids the repeated work.
+
+**Conditions:** Node is `CTE Scan` · `Loops ≥ 10` · `Loops × (ActualRows + RowsRemovedByFilter) ≥ 10,000`.
+
+**Severity:** Warning below 100,000 cumulative rows, Critical at or above.
+
+**Example finding:**
+
+> [4] CTE Scan on r — CTE "recent_orders" was scanned 50 times, processing 10,500 rows cumulatively. Converting to a JOIN or subquery typically avoids repeated work.
+
+**What to do:** rewrite the CTE as a JOIN or subquery, or wrap it with `AS MATERIALIZED` only when the repeat work is actually cheaper than materialising once.
+
+---
+
+## network_overhead
+
+**Category:** Diagnostic · **Severity:** Info / Warning / Critical · *New in v0.5*
+
+Flags queries that return a lot of data to the client. The rule only looks at the plan root (the shape the client actually sees).
+
+**Conditions:** Root emits `ActualRowsTotal × PlanWidth ≥ 10 MB`.
+
+**Severity tiers:** 10–100 MB → Info, 100 MB–1 GB → Warning, ≥ 1 GB → Critical.
+
+**Example finding:**
+
+> (plan-level) — Query returns approximately 122.1 MB to the client (500,000 rows × 256 bytes). Consider LIMIT, column projection, or server-side aggregation.
+
+**What to do:** add a `LIMIT`, project specific columns instead of `SELECT *`, or push aggregation / pagination to the server.
+
+---
+
+## redundant_aggregation
+
+**Category:** Prescriptive · **Severity:** Info · *New in v0.5*
+
+Flags `Aggregate` nodes that use the `Hashed` strategy immediately above a `Sort` whose keys already group the input. In those cases a `GroupAggregate` would skip the hash table entirely.
+
+**Conditions:** Aggregate with `Strategy == "Hashed"` · immediate non-InitPlan child is `Sort` · Sort's leading keys cover the aggregate's `GroupKey`.
+
+**Example finding:**
+
+> [1] Aggregate — HashAggregate above a Sort that could feed GroupAggregate directly. Consider enforcing GroupAggregate via query shape or enable_hashagg settings.
+
+**What to do:** check `enable_hashagg` / `work_mem` tuning, or reshape the query so the planner sees the sorted input.
+
+---
+
+## memoize_opportunity
+
+**Category:** Prescriptive · **Severity:** Info · *New in v0.5*
+
+Flags `Nested Loop` joins whose inner side re-probes on repeated keys (many loops, near-zero rows per loop) without a `Memoize` node. PostgreSQL 14 added `Memoize`; the planner picks it based on statistics, so stale stats can make it miss.
+
+**Conditions:** Nested Loop · inner child has `Loops ≥ 100` · inner `ActualRows ≤ 1` on average · no `Memoize` node between the join and the inner scan · plan server version ≥ 14 (unknown version is treated as safe to fire).
+
+**Example finding:**
+
+> [1] Nested Loop — Nested Loop with 5,000 inner iterations averaging 0.0 rows each. A Memoize node could cache repeated lookups; check ANALYZE freshness and enable_memoize. Suggested: `ANALYZE trips;`
+
+**What to do:** run `ANALYZE` on the inner table, or enable `enable_memoize` if it was turned off.
+
+---
+
+## unused_index_hint
+
+**Category:** Diagnostic · **Severity:** Info · *New in v0.5*
+
+Informational alert: one or more non-primary, non-unique indexes on a table the query touches show zero scans in `pg_stat_user_indexes`. The rule intentionally **does not** suggest `DROP INDEX`; indexes may back rare workflows or constraints, and the call is the operator's.
+
+**Conditions:** schema is loaded · at least one index on the touched table has `Scans > 0` (protects against legacy schema exports where the field is uniformly zero) · the candidate index has `Scans == 0` and is neither primary nor unique.
+
+**Example finding:**
+
+> [1] Seq Scan on orders — Table public.orders has 1 index(es) with zero scans recorded since last stats reset: orders_stale_idx. Review whether they're still needed. dbagent does not generate DROP INDEX statements automatically.
+
+**What to do:** confirm the index isn't maintained for rare workflows or constraints; if truly unused, drop it by hand.
+
+---
+
+## duplicate_index
+
+**Category:** Prescriptive · **Severity:** Warning · *New in v0.5*
+
+Flags pairs of indexes on the same table whose column lists are identical (order-sensitive — `(a, b)` and `(b, a)` are not duplicates).
+
+**Conditions:** schema loaded · two or more non-partial indexes on the touched table share an ordered column list.
+
+**Drop candidate selection:** the rule proposes dropping the non-primary, non-unique index with the lexicographically later name. When every candidate in the group is constraint-backed, the finding still appears but the `Suggested` line is omitted — dropping a primary key or unique index would break the constraint.
+
+**Example finding:**
+
+> [1] Seq Scan on orders — Table public.orders has duplicate indexes on (customer_id, status): orders_cust_status_idx and orders_duplicate_cust_status_idx. Consider dropping one.
+> Suggested: `DROP INDEX public.orders_duplicate_cust_status_idx;`
+
+**What to do:** drop the proposed index after confirming no application or monitoring pins it by name.
+
+---
+
+## composite_index_extension
+
+**Category:** Prescriptive · **Severity:** Warning · *New in v0.5*
+
+Flags `Index Scan` / `Index Only Scan` nodes that still carry a trailing `Filter` — the index supplied the index condition, but additional predicates re-check every row afterwards. Extending the index to cover the filter columns often removes the extra work. Complements `missing_index_on_filter`, which targets Seq/Bitmap Heap scans without a usable index.
+
+**Conditions:** schema loaded · node is an Index Scan or Index Only Scan with a non-empty `Filter` · the referenced index is non-primary, non-unique, non-partial, btree.
+
+**Example finding:**
+
+> [1] Index Scan on orders — Index "orders_customer_idx" covers the index condition but not the trailing filter. Extending to (customer_id, status) would avoid the additional work.
+
+**What to do:** replace the index with the extended version in a controlled deploy window (or use `CREATE INDEX CONCURRENTLY` in a two-step migration).
+
+---
+
+## table_bloat
+
+**Category:** Prescriptive · **Severity:** Info / Warning · *New in v0.5*
+
+Flags scans that read dramatically more bytes than their row work warrants — a pattern consistent with dead-tuple bloat or uncleaned TOAST.
+
+**Conditions:** node is a scan · `SharedHitBlocks + SharedReadBlocks ≥ 64` (avoid firing on tiny scans) · `bloatFactor(blocks, rows, width) ≥ 2`.
+
+**Severity:** Info when the factor is 2–10, Warning at or above 10.
+
+**Example finding:**
+
+> [1] Seq Scan on rule_orders — Scan reads 4,412 blocks (34.5 MB) for 10 rows — approximately 3,613,081 bytes per row. This may indicate table bloat or dead tuples.
+> Suggested: `VACUUM (ANALYZE) rule_orders;`
+
+**What to do:** run the suggested `VACUUM (ANALYZE)` during a low-traffic window. `VACUUM FULL` is deliberately **not** suggested because it takes an exclusive lock; schedule it manually if reclaiming on-disk space is required.
 

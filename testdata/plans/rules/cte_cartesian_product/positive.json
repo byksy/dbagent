@@ -1,0 +1,61 @@
+[
+  {
+    "Plan": {
+      "Node Type": "Nested Loop",
+      "Join Type": "Inner",
+      "Startup Cost": 50.00,
+      "Total Cost": 5000.00,
+      "Plan Rows": 10000,
+      "Plan Width": 32,
+      "Actual Startup Time": 5.0,
+      "Actual Total Time": 250.0,
+      "Actual Rows": 10000,
+      "Actual Loops": 1,
+      "Shared Hit Blocks": 1500,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Plans": [
+        {
+          "Node Type": "Seq Scan",
+          "Parent Relationship": "Outer",
+          "Relation Name": "customers",
+          "Alias": "customers",
+          "Startup Cost": 0.00,
+          "Total Cost": 100.00,
+          "Plan Rows": 50,
+          "Plan Width": 8,
+          "Actual Startup Time": 0.1,
+          "Actual Total Time": 1.2,
+          "Actual Rows": 50,
+          "Actual Loops": 1,
+          "Shared Hit Blocks": 3,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0
+        },
+        {
+          "Node Type": "CTE Scan",
+          "Parent Relationship": "Inner",
+          "CTE Name": "recent_orders",
+          "Alias": "r",
+          "Startup Cost": 0.00,
+          "Total Cost": 90.00,
+          "Plan Rows": 200,
+          "Plan Width": 24,
+          "Actual Startup Time": 0.05,
+          "Actual Total Time": 4.0,
+          "Actual Rows": 200,
+          "Actual Loops": 50,
+          "Rows Removed by Filter": 10,
+          "Shared Hit Blocks": 200,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0
+        }
+      ]
+    },
+    "Planning Time": 0.5,
+    "Execution Time": 255.0
+  }
+]

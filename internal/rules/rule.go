@@ -120,15 +120,28 @@ func newFinding(r Rule, nodeID int, sev Severity, msg string, evidence map[strin
 // (not init()-time) so tests can pass a subset to Run.
 func Default() []Rule {
 	return []Rule{
+		// Stage 3 — plan-only diagnostic
 		&HotNode{},
 		&RowMisestimate{},
 		&FilterRemovalRatio{},
+		// Stage 3 — plan-only prescriptive
 		&MissingIndexOnFilter{},
 		&BitmapAndComposite{},
 		&SortSpilled{},
 		&PlanningVsExecution{},
 		&WorkerShortage{},
+		// Stage 4 — schema-aware
 		&FKMissingIndex{},
+		// Stage 5 — plan-only
+		&CTECartesianProduct{},
+		&NetworkOverhead{},
+		&RedundantAggregation{},
+		&MemoizeOpportunity{},
+		// Stage 5 — schema-aware
+		&UnusedIndexHint{},
+		&DuplicateIndex{},
+		&CompositeIndexExtension{},
+		&TableBloat{},
 	}
 }
 

@@ -1,17 +1,17 @@
 Plan (total: 0.2ms, planning: 0.1ms, execution: 0.0ms)
 
   #  time   excl%  rows  misest    loops  node
-  1  0.0ms  2.9%   100   1.0×      1      Limit
-  2  0.0ms  12.7%  100   125.1× ↑  1       └ Seq Scan on orders
+  1  0.0ms  2.7%   100   1.0×      1      Limit
+  2  0.0ms  13.2%  100   123.7× ↑  1       └ Seq Scan on orders
 
 Summary
   Slowest node (exclusive):  [2] Seq Scan on orders — 0.0ms (13% of total)
-  Biggest row misestimate:   [2] Seq Scan on orders — planned 12,513, actual 100 (125.1× over)
+  Biggest row misestimate:   [2] Seq Scan on orders — planned 12,368, actual 100 (123.7× over)
 
 Findings
   WARNING   [2] Seq Scan on orders
             └─ row_misestimate
-               Planner estimated 12513 rows, actual is 100 (125.1× over).
+               Planner estimated 12368 rows, actual is 100 (123.7× over).
                Suggested: ANALYZE orders;
 
   INFO      [2] Seq Scan on orders

@@ -1,6 +1,6 @@
 Plan (total: 125.3ms, planning: 0.3ms, execution: 125.0ms)
 
-[1] Seq Scan on rule_orders  rows=5,000  time=120.0ms  loops=1  ✗
+[1] Seq Scan on rule_orders  rows=5,000  time=120.0ms  loops=1  ℹ ✗
     filter=(status = 'shipped'::text)  filter_removed=495,000
     buffers: shared hit=8,000 read=0
 
@@ -22,4 +22,9 @@ Findings
                Filter removes 99% of rows scanned (495000 rows). Consider an index to push the predicate down. (schema not available to verify)
                Suggested: CREATE INDEX ON rule_orders (status);
 
-3 findings (3 critical)
+  INFO      [1] Seq Scan on rule_orders
+            └─ table_bloat
+               Scan reads 8000 blocks (62.5 MB) for 500000 rows — approximately 131 bytes per row. This may indicate table bloat or dead tuples.
+               Suggested: VACUUM (ANALYZE) rule_orders;
+
+4 findings (3 critical, 1 info)

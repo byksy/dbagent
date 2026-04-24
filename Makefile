@@ -2,8 +2,15 @@
 
 BINARY := bin/dbagent
 
+# VERSION is produced by git describe: "vX.Y.Z" on a tagged commit,
+# "vX.Y.Z-N-gSHA" N commits after the tag, with "-dirty" suffix if
+# the working tree has uncommitted changes. Shallow clones or a
+# tagless repo fall back to "dev" so the build still succeeds.
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+LDFLAGS := -ldflags "-X github.com/byksy/dbagent/internal/cli.Version=$(VERSION)"
+
 build:
-	go build -o $(BINARY) ./cmd/dbagent
+	go build $(LDFLAGS) -o $(BINARY) ./cmd/dbagent
 
 test:
 	go test -race ./...

@@ -80,6 +80,15 @@ type Index struct {
 	Method     string   `json:"method"`
 	SizeBytes  int64    `json:"size_bytes"`
 	Definition string   `json:"definition"`
+
+	// Scans comes from pg_stat_user_indexes.idx_scan and counts how
+	// many times the planner picked this index since stats last
+	// reset. A value of 0 can mean "never used" OR "stats were reset
+	// recently"; the unused_index_hint rule surfaces the ambiguity
+	// in its message. Old schema JSON exports without this field
+	// load with Scans = 0, which effectively mutes the rule rather
+	// than producing false positives.
+	Scans int64 `json:"scans,omitempty"`
 }
 
 // FQN returns "schema.name" for the index. See Table.FQN for quoting rules.

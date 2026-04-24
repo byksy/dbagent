@@ -65,13 +65,21 @@ func TestCategory_String(t *testing.T) {
 func TestDefault_AllRulesPresent(t *testing.T) {
 	want := []string{
 		"bitmap_and_composite",
+		"composite_index_extension",
+		"cte_cartesian_product",
+		"duplicate_index",
 		"filter_removal_ratio",
 		"fk_missing_index",
 		"hot_node",
+		"memoize_opportunity",
 		"missing_index_on_filter",
+		"network_overhead",
 		"planning_vs_execution",
+		"redundant_aggregation",
 		"row_misestimate",
 		"sort_spilled",
+		"table_bloat",
+		"unused_index_hint",
 		"worker_shortage",
 	}
 	got := make([]string, 0, len(Default()))
@@ -86,6 +94,12 @@ func TestDefault_AllRulesPresent(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("rule[%d] = %q, want %q", i, got[i], want[i])
 		}
+	}
+}
+
+func TestDefault_RuleCountAt17(t *testing.T) {
+	if got := len(Default()); got != 17 {
+		t.Errorf("Default() rule count = %d, want 17", got)
 	}
 }
 

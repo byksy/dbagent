@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/byksy/dbagent/internal/plan"
+	"github.com/byksy/dbagent/internal/schema"
 )
 
 // ExtractFilterColumns pulls column names from a PostgreSQL filter or
@@ -71,7 +72,7 @@ var predicateRE = regexp.MustCompile(`(?i)` +
 	`\s*\)*` + // close wrapping paren
 	`(?:::[A-Za-z_][A-Za-z0-9_]*(?:\[\])?)?` + // optional ::type
 	`\s*\)*\s*` + // close outer paren
-	`(?:IS\s+NOT\s+NULL|IS\s+NULL|<=|>=|<>|!=|=\s*ANY|=|<|>|IN\s|@>|<@|\|\||@@)`)
+	`(?:IS\s+NOT\s+NULL|IS\s+NULL|<=|>=|<>|!=|=\s*ANY|=|<|>|IN\s|@>|<@|!~~\*|!~~|~~\*|~~|\|\||@@)`)
 
 // singleArgCallRE detects "func(col)" with exactly one identifier
 // argument so we can still pluck the column out. Two-arg function
@@ -141,4 +142,125 @@ func FormatWorkMem(kb int64) string {
 		return fmt.Sprintf("%dGB", gb)
 	}
 	return fmt.Sprintf("%dMB", p)
+}
+
+// humanBytes formats a byte count for human display. Anything under
+// 1024 is shown as bytes with no suffix decoration; kB/MB/GB values
+// carry one decimal so "7,340,032" reads as "7.0 MB" rather than
+// "7000.0 kB".
+func humanBytes(n int64) string {
+	const (
+		kB = 1024
+		mB = 1024 * kB
+		gB = 1024 * mB
+	)
+	switch {
+	case n < 0:
+		return "-" + humanBytes(-n)
+	case n >= gB:
+		return fmt.Sprintf("%.1f GB", float64(n)/float64(gB))
+	case n >= mB:
+		return fmt.Sprintf("%.1f MB", float64(n)/float64(mB))
+	case n >= kB:
+		return fmt.Sprintf("%.1f kB", float64(n)/float64(kB))
+	}
+	return fmt.Sprintf("%d B", n)
+}
+
+// bloatFactor returns an approximate ratio of bytes-read to the
+// minimum-expected bytes the row work would justify. Used by the
+// table_bloat rule as a cheap, conservative indicator that the
+// scan moved far more data than its returned rows warrant. Returns
+// 0 when either the block count or the row-work estimate is zero —
+// callers should treat that as "no signal", not "no bloat".
+//
+// The 8-bytes-per-row lower bound is intentionally tiny; the goal
+// is to catch scans that are pulling whole pages for almost-empty
+// rows (classic dead-tuple bloat).
+func bloatFactor(blocks, rows, width int64) float64 {
+	if blocks <= 0 || rows <= 0 {
+		return 0
+	}
+	const (
+		bytesPerBlock  = 8192
+		minBytesPerRow = 8
+	)
+	bytesRead := float64(blocks) * bytesPerBlock
+	expected := float64(rows) * float64(width)
+	if expected < float64(rows*minBytesPerRow) {
+		expected = float64(rows * minBytesPerRow)
+	}
+	if expected == 0 {
+		return 0
+	}
+	return bytesRead / expected
+}
+
+// collectTouchedTables walks the plan and returns the first scan
+// node's ID for each base relation it encounters. Keys are fully
+// qualified names ("schema.relation"); values are node IDs suitable
+// for attaching findings.
+//
+// NeverExecuted scans are skipped: anchoring a finding to a branch
+// the plan never actually entered would mislead the operator about
+// which relation this query hit. Shared across schema-aware rules
+// (fk_missing_index, unused_index_hint, duplicate_index, table_bloat).
+func collectTouchedTables(p *plan.Plan) map[string]int {
+	out := map[string]int{}
+	if p == nil || p.Root == nil {
+		return out
+	}
+	p.Root.Walk(func(n *plan.Node) {
+		if n.NeverExecuted || n.RelationName == "" || !isScanNode(n.NodeType) {
+			return
+		}
+		fqn := fullyQualified(n.Schema, n.RelationName)
+		if _, seen := out[fqn]; !seen {
+			out[fqn] = n.ID
+		}
+	})
+	return out
+}
+
+// fullyQualified prepends "public" when no schema is set, matching
+// the convention used by internal/schema. Keeps matching consistent
+// between plan node relation names (usually bare) and Schema keys
+// (always qualified).
+func fullyQualified(s, name string) string {
+	if name == "" {
+		return ""
+	}
+	if s == "" {
+		return "public." + name
+	}
+	return s + "." + name
+}
+
+// findIndexByName returns the *schema.Index from xs whose Name
+// matches target, or nil. Used by composite_index_extension and
+// similar rules that know an index's name from the plan node and
+// need to reach the Schema entry.
+func findIndexByName(xs []*schema.Index, target string) *schema.Index {
+	for _, idx := range xs {
+		if idx != nil && idx.Name == target {
+			return idx
+		}
+	}
+	return nil
+}
+
+// isScanNode reports whether a NodeType reads rows from a user
+// table directly. Non-scan nodes (joins, aggregates) don't have a
+// RelationName and shouldn't anchor schema-aware findings.
+func isScanNode(t plan.NodeType) bool {
+	switch t {
+	case plan.NodeTypeSeqScan,
+		plan.NodeTypeIndexScan,
+		plan.NodeTypeIndexOnlyScan,
+		plan.NodeTypeBitmapHeapScan,
+		plan.NodeTypeTidScan,
+		plan.NodeTypeForeignScan:
+		return true
+	}
+	return false
 }

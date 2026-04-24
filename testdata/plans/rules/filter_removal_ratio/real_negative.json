@@ -9,8 +9,8 @@
       "Relation Name": "rule_orders",
       "Alias": "rule_orders",
       "Startup Cost": 0.42,
-      "Total Cost": 10.30,
-      "Plan Rows": 94,
+      "Total Cost": 10.40,
+      "Plan Rows": 99,
       "Plan Width": 30,
       "Actual Startup Time": 0.003,
       "Actual Total Time": 0.009,
@@ -41,9 +41,9 @@
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.155,
+    "Planning Time": 0.148,
     "Triggers": [
     ],
-    "Execution Time": 0.036
+    "Execution Time": 0.035
   }
 ]

@@ -7,9 +7,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// version is the hardcoded version string for Stage 1. A real release
-// will substitute this at build time.
-const version = "v0.1.0-dev"
+// Version is set at build time via -ldflags. The Makefile populates
+// it with `git describe --tags --always --dirty`, producing values
+// like "v0.4.1" for a clean tagged build and
+// "v0.4.1-7-gabcd123-dirty" for in-development work past a tag.
+//
+// Unset builds (plain `go build` with no ldflags, or `go install
+// …@latest` off a non-tagged commit) see "dev" — this is the
+// intentional fallback, not an error. Release installs that pin a
+// tag pick up the Go module proxy's tag information automatically.
+var Version = "dev"
 
 // newVersionCmd builds the "version" subcommand.
 func newVersionCmd() *cobra.Command {
@@ -18,7 +25,7 @@ func newVersionCmd() *cobra.Command {
 		Short: "Print version information",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			fmt.Fprintf(cmd.OutOrStdout(), "dbagent %s\n%s %s/%s\n",
-				version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+				Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 			return nil
 		},
 	}

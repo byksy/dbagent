@@ -162,7 +162,8 @@ SELECT
     am.amname,
     pg_relation_size(i.oid),
     pg_get_indexdef(ix.indexrelid),
-    array_agg(a.attname ORDER BY ord.n)
+    array_agg(a.attname ORDER BY ord.n),
+    COALESCE(us.idx_scan, 0)
 FROM pg_index ix
 JOIN pg_class i ON i.oid = ix.indexrelid
 JOIN pg_class t ON t.oid = ix.indrelid
@@ -171,12 +172,13 @@ JOIN pg_namespace tn ON tn.oid = t.relnamespace
 JOIN pg_am am ON am.oid = i.relam
 LEFT JOIN unnest(ix.indkey) WITH ORDINALITY AS ord(attnum, n) ON true
 LEFT JOIN pg_attribute a ON a.attrelid = ix.indrelid AND a.attnum = ord.attnum
+LEFT JOIN pg_stat_user_indexes us ON us.indexrelid = ix.indexrelid
 WHERE t.relkind = 'r'
   AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
   AND n.nspname NOT LIKE 'pg_%'
 GROUP BY n.nspname, i.relname, t.relname, tn.nspname,
          ix.indisunique, ix.indisprimary, ix.indpred, ix.indrelid,
-         am.amname, i.oid, ix.indexrelid
+         am.amname, i.oid, ix.indexrelid, us.idx_scan
 ORDER BY n.nspname, i.relname`
 	rows, err := tx.Query(ctx, q)
 	if err != nil {
@@ -193,7 +195,7 @@ ORDER BY n.nspname, i.relname`
 			&idx.Schema, &idx.Name,
 			&tableName, &tableNS,
 			&idx.IsUnique, &idx.IsPrimary, &idx.IsPartial, &idx.WhereExpr,
-			&idx.Method, &idx.SizeBytes, &idx.Definition, &rawCols,
+			&idx.Method, &idx.SizeBytes, &idx.Definition, &rawCols, &idx.Scans,
 		); err != nil {
 			return fmt.Errorf("schema: scan index: %w", err)
 		}

@@ -70,7 +70,7 @@ func fetchSchemaForCmd(cmd *cobra.Command) (*schema.Schema, error) {
 	if err != nil {
 		return nil, newExitError(ExitInternal, err)
 	}
-	s.Meta.DBAgentVersion = version
+	s.Meta.DBAgentVersion = Version
 	return s, nil
 }
 
