@@ -138,6 +138,45 @@ func applyDefaults(v *viper.Viper) {
 	v.SetDefault("log.level", d.Log.Level)
 }
 
+// ConfigExists reports whether a regular file exists at path. It is
+// a thin wrapper around os.Stat with two differences: an empty path
+// is rejected up front, and a directory at the given path returns an
+// error so callers can print a clearer message than "file not
+// found". No readability / permission check is performed — that is
+// deferred to the caller's subsequent Load.
+func ConfigExists(path string) (bool, error) {
+	if path == "" {
+		return false, errors.New("config: ConfigExists called with empty path")
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		return false, fmt.Errorf("config: stat %s: %w", path, err)
+	}
+	if info.IsDir() {
+		return false, fmt.Errorf("config: %s is a directory", path)
+	}
+	return true, nil
+}
+
+// DeleteConfig removes the config file at path. It is idempotent:
+// removing a file that does not exist returns nil. All other os
+// errors are wrapped and returned as-is.
+func DeleteConfig(path string) error {
+	if path == "" {
+		return errors.New("config: DeleteConfig called with empty path")
+	}
+	if err := os.Remove(path); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("config: remove %s: %w", path, err)
+	}
+	return nil
+}
+
 // Save writes the config to path, creating the parent directory if
 // needed. The file is written with mode 0600 because it contains the
 // database password.
@@ -155,6 +194,17 @@ func Save(cfg *Config, path string) error {
 		return fmt.Errorf("config: write %s: %w", path, err)
 	}
 	return nil
+}
+
+// Marshal returns the YAML bytes for cfg using the same fixed layout
+// Save writes to disk. Callers rendering the config for display
+// (e.g., `dbagent config show`) should pass cfg.Redacted() so the
+// password never escapes.
+func Marshal(cfg *Config) []byte {
+	if cfg == nil {
+		return nil
+	}
+	return marshalYAML(cfg)
 }
 
 // marshalYAML produces the YAML representation of the config. We write
