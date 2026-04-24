@@ -3,16 +3,15 @@ package plan
 import "strings"
 
 // ExclusiveTimeMs returns the wall-clock time spent in this node only,
-// excluding children and multiplied by Loops. InitPlan- and
-// CTE-source children are NOT subtracted — their time is already
-// accounted for where the plan uses them, at the CTE Scan call sites.
-// Returns 0 for NeverExecuted nodes and clamps floating-point
-// roundoff to 0.
+// excluding children. InitPlan- and CTE-source children are NOT
+// subtracted — their time is already accounted for where the plan
+// uses them, at the CTE Scan call sites. Returns 0 for NeverExecuted
+// nodes and clamps floating-point roundoff to 0.
 func (n *Node) ExclusiveTimeMs() float64 {
 	if n == nil || n.NeverExecuted {
 		return 0
 	}
-	inclusive := n.ActualTotalTimeMs * float64(loopsOrOne(n))
+	inclusive := nodeWallClockMs(n)
 	var childSum float64
 	for _, c := range n.Children {
 		if isInitPlanOrCTE(c) {
@@ -26,13 +25,45 @@ func (n *Node) ExclusiveTimeMs() float64 {
 	return 0
 }
 
-// InclusiveTimeMs returns the total time spent in this node and all
-// children, multiplied by Loops. Returns 0 for NeverExecuted nodes.
+// InclusiveTimeMs returns the total wall-clock time spent in this
+// node and all children. Returns 0 for NeverExecuted nodes.
 func (n *Node) InclusiveTimeMs() float64 {
 	if n == nil || n.NeverExecuted {
 		return 0
 	}
+	return nodeWallClockMs(n)
+}
+
+// nodeWallClockMs converts a node's ActualTotalTime into a wall-clock
+// contribution. For serial nodes (the common case, including
+// nested-loop inner scans) the formula is ActualTotalTime × Loops —
+// each loop ran after the previous one, so the wall-clock is their
+// sum. For parallel-child nodes the loops ran concurrently on the
+// Gather's workers, so the scan's wall-clock contribution is just
+// ActualTotalTime (PostgreSQL emits it as the per-worker average,
+// which approximates the wall-clock tail).
+func nodeWallClockMs(n *Node) float64 {
+	if isParallelChild(n) {
+		return n.ActualTotalTimeMs
+	}
 	return n.ActualTotalTimeMs * float64(loopsOrOne(n))
+}
+
+// isParallelChild reports whether n runs under a parallel region.
+// Walking ancestors up to Gather / GatherMerge catches both direct
+// parallel scans (Seq Scan under Gather) and nested shapes
+// (Gather Merge → Sort → Parallel Seq Scan), where intermediate
+// nodes like Sort are also per-worker.
+func isParallelChild(n *Node) bool {
+	if n == nil {
+		return false
+	}
+	for a := n.Parent; a != nil; a = a.Parent {
+		if a.NodeType == NodeTypeGather || a.NodeType == NodeTypeGatherMerge {
+			return true
+		}
+	}
+	return false
 }
 
 // ActualRowsTotal returns the total row count this node produced
