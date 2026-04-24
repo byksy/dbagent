@@ -40,30 +40,40 @@ func (r *DuplicateIndex) Check(ctx *RuleContext) []Finding {
 			continue
 		}
 
-		// Pick the drop candidate: prefer a non-primary, non-unique
-		// index. If both are constraint-backed, decline to suggest a
-		// DROP — the finding is still emitted as a hint.
-		dropCandidate := pickDropCandidate(group)
+		// Split the group into a keeper plus drop candidates. The
+		// keeper is preferably a primary-key or unique index (they
+		// back constraints); otherwise it's the lexicographically
+		// smallest name, with everything else suggested for DROP.
+		// This scales to 3+ duplicate groups — the previous single-
+		// pick approach would have left N-1 duplicates behind instead
+		// of N-1 drop suggestions.
+		dropCandidates := pickDropCandidates(group)
 
-		msg := fmt.Sprintf("Table %s has duplicate indexes on (%s): %s. Consider dropping one.",
+		msg := fmt.Sprintf("Table %s has duplicate indexes on (%s): %s. Consider dropping %s.",
 			tableFQN,
 			strings.Join(group[0].Columns, ", "),
 			joinIndexNames(group),
+			dropVerb(len(dropCandidates)),
 		)
 
 		ev := map[string]any{
-			"table":       tableFQN,
-			"columns":     group[0].Columns,
-			"index_names": indexNamesFromGroup(group),
+			"table":           tableFQN,
+			"columns":         group[0].Columns,
+			"index_names":     indexNamesFromGroup(group),
+			"drop_candidates": indexNamesFromGroup(dropCandidates),
 		}
 
 		f := newFinding(r, nodeID, SeverityWarning, msg, ev)
-		if dropCandidate != nil {
-			f.Suggested = fmt.Sprintf("DROP INDEX %s;", dropCandidate.FQN())
+		if len(dropCandidates) > 0 {
+			var b strings.Builder
+			for _, idx := range dropCandidates {
+				fmt.Fprintf(&b, "DROP INDEX %s;\n", idx.FQN())
+			}
+			f.Suggested = strings.TrimRight(b.String(), "\n")
 			f.SuggestedMeta = map[string]any{
-				"kind":  "drop_index",
-				"index": dropCandidate.Name,
-				"table": tableFQN,
+				"kind":    "drop_index",
+				"indexes": indexNamesFromGroup(dropCandidates),
+				"table":   tableFQN,
 			}
 		}
 		out = append(out, f)
@@ -71,31 +81,75 @@ func (r *DuplicateIndex) Check(ctx *RuleContext) []Finding {
 	return out
 }
 
-// pickDropCandidate returns the index most safe to DROP from a
-// duplicate group. Strategy:
-//   - Never pick a primary-key or unique index (they back constraints).
-//   - Among the remaining, pick the one with the lexicographically
-//     later name — a simple proxy for "newer / less foundational".
-//   - If every index in the group is constraint-backed, return nil.
-//     The caller keeps the finding but omits the Suggested line.
-func pickDropCandidate(group []*schema.Index) *schema.Index {
-	var safe []*schema.Index
-	for _, idx := range group {
-		if idx == nil || idx.IsPrimary || idx.IsUnique {
-			continue
-		}
-		safe = append(safe, idx)
-	}
-	if len(safe) == 0 {
+// pickDropCandidates splits a duplicate group into "keep one" plus
+// "drop the rest" and returns the drop list.
+//
+// Keep-selection priority:
+//  1. A primary-key index (drops constraint if removed — sacred).
+//  2. A unique index (same reason).
+//  3. The lexicographically smallest remaining name — simple, stable
+//     tie-break that an operator can explain later.
+//
+// Returns nil when every index in the group is constraint-backed: we
+// refuse to suggest dropping any of them, and the caller omits the
+// Suggested line.
+func pickDropCandidates(group []*schema.Index) []*schema.Index {
+	if len(group) < 2 {
 		return nil
 	}
-	best := safe[0]
-	for _, idx := range safe[1:] {
-		if idx.Name > best.Name {
-			best = idx
+	// Find a keep candidate, preferring primary, then unique, then
+	// lexicographically smallest name among the non-constraint
+	// indexes.
+	var keep *schema.Index
+	for _, idx := range group {
+		if idx != nil && idx.IsPrimary {
+			keep = idx
+			break
 		}
 	}
-	return best
+	if keep == nil {
+		for _, idx := range group {
+			if idx != nil && idx.IsUnique {
+				keep = idx
+				break
+			}
+		}
+	}
+	if keep == nil {
+		for _, idx := range group {
+			if idx == nil {
+				continue
+			}
+			if keep == nil || idx.Name < keep.Name {
+				keep = idx
+			}
+		}
+	}
+
+	var drops []*schema.Index
+	for _, idx := range group {
+		if idx == nil || idx == keep {
+			continue
+		}
+		if idx.IsPrimary || idx.IsUnique {
+			// Never propose dropping a constraint-backed index, even
+			// if we kept a non-constraint one instead. This shouldn't
+			// happen with correct PG schemas, but defends against
+			// oddly-shaped test fixtures.
+			continue
+		}
+		drops = append(drops, idx)
+	}
+	return drops
+}
+
+// dropVerb returns singular/plural "one" / "all but one" phrasing
+// for the message.
+func dropVerb(n int) string {
+	if n == 1 {
+		return "one"
+	}
+	return "all but one"
 }
 
 // joinIndexNames returns a human-readable "a and b" / "a, b, c" list

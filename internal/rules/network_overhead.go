@@ -1,8 +1,6 @@
 package rules
 
-import (
-	"fmt"
-)
+import "fmt"
 
 // Byte thresholds for network-overhead tiers. 10 MB is the floor
 // where a single query's payload starts showing up in application
@@ -37,7 +35,7 @@ func (r *NetworkOverhead) Check(ctx *RuleContext) []Finding {
 	if rows <= 0 || width <= 0 {
 		return nil
 	}
-	totalBytes := rows * width
+	totalBytes := mulSaturating(rows, width)
 	if totalBytes < networkOverheadInfoBytes {
 		return nil
 	}

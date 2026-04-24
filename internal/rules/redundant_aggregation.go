@@ -53,8 +53,11 @@ func (r *RedundantAggregation) Check(ctx *RuleContext) []Finding {
 }
 
 // firstNonInitPlanChild returns the first child whose parent
-// relationship is neither InitPlan nor a CTE source, so the rule
-// looks at the actual row pipeline under the aggregate.
+// relationship isn't "InitPlan", so the rule looks at the actual
+// row pipeline under the aggregate. PostgreSQL reuses the
+// "InitPlan" parent-relationship label for both classic InitPlans
+// and non-recursive CTE source definitions (see parser comments in
+// internal/plan/stats.go), so a single skip covers both cases.
 func firstNonInitPlanChild(n *plan.Node) *plan.Node {
 	for _, c := range n.Children {
 		if c == nil {

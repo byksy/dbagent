@@ -56,7 +56,7 @@ func (r *TableBloat) Check(ctx *RuleContext) []Finding {
 			sev = SeverityWarning
 		}
 
-		bytesRead := blocks * 8192
+		bytesRead := mulSaturating(blocks, 8192)
 		var bytesPerRow int64
 		if totalRows > 0 {
 			bytesPerRow = bytesRead / totalRows

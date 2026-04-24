@@ -2,6 +2,7 @@ package rules
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"strings"
 
@@ -144,6 +145,22 @@ func FormatWorkMem(kb int64) string {
 	return fmt.Sprintf("%dMB", p)
 }
 
+// mulSaturating multiplies two non-negative int64 values with
+// saturating semantics: if the true product would overflow int64,
+// it returns math.MaxInt64 instead of wrapping to a negative
+// number. Used by rules that multiply row counts by byte widths,
+// where overflow on pathological inputs would otherwise make the
+// severity gates fire in the wrong direction.
+func mulSaturating(a, b int64) int64 {
+	if a <= 0 || b <= 0 {
+		return 0
+	}
+	if a > math.MaxInt64/b {
+		return math.MaxInt64
+	}
+	return a * b
+}
+
 // humanBytes formats a byte count for human display. Anything under
 // 1024 is shown as bytes with no suffix decoration; kB/MB/GB values
 // carry one decimal so "7,340,032" reads as "7.0 MB" rather than
@@ -222,18 +239,21 @@ func collectTouchedTables(p *plan.Plan) map[string]int {
 	return out
 }
 
-// fullyQualified prepends "public" when no schema is set, matching
-// the convention used by internal/schema. Keeps matching consistent
-// between plan node relation names (usually bare) and Schema keys
-// (always qualified).
+// fullyQualified builds a Schema-key-compatible FQN for a plan
+// node's relation. It defers to schema.Table.FQN so identifier
+// quoting stays consistent between plan-derived names (bare, as
+// PostgreSQL EXPLAIN emits them) and Schema keys (always qualified,
+// with quoting for MixedCase or reserved identifiers). Without this
+// normalisation, touched-table matching would silently fail on any
+// identifier that needed quoting.
 func fullyQualified(s, name string) string {
 	if name == "" {
 		return ""
 	}
 	if s == "" {
-		return "public." + name
+		s = "public"
 	}
-	return s + "." + name
+	return (&schema.Table{Schema: s, Name: name}).FQN()
 }
 
 // findIndexByName returns the *schema.Index from xs whose Name
