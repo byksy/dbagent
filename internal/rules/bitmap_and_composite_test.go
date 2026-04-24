@@ -11,7 +11,7 @@ func TestBitmapAndComposite(t *testing.T) {
 
 	t.Run("fires on 2-child BitmapAnd with composite CREATE INDEX", func(t *testing.T) {
 		p := loadRuleFixture(t, "bitmap_and_composite", "positive.json")
-		f := rule.Check(p)
+		f := rule.Check(newContext(p))
 		if len(f) != 1 {
 			t.Fatalf("got %d findings, want 1: %+v", len(f), f)
 		}
@@ -31,14 +31,14 @@ func TestBitmapAndComposite(t *testing.T) {
 
 	t.Run("no finding for single-child bitmap path", func(t *testing.T) {
 		p := loadRuleFixture(t, "bitmap_and_composite", "negative.json")
-		if f := rule.Check(p); len(f) != 0 {
+		if f := rule.Check(newContext(p)); len(f) != 0 {
 			t.Errorf("got %d findings, want 0: %+v", len(f), f)
 		}
 	})
 
 	t.Run("suggested mentions CREATE INDEX", func(t *testing.T) {
 		p := loadRuleFixture(t, "bitmap_and_composite", "positive.json")
-		f := rule.Check(p)
+		f := rule.Check(newContext(p))
 		if !strings.HasPrefix(f[0].Suggested, "CREATE INDEX") {
 			t.Errorf("suggested prefix: %q", f[0].Suggested)
 		}

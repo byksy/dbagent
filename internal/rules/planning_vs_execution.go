@@ -1,10 +1,6 @@
 package rules
 
-import (
-	"fmt"
-
-	"github.com/byksy/dbagent/internal/plan"
-)
+import "fmt"
 
 const (
 	// planningVsExecutionMaxExecMs: the rule only makes sense for very
@@ -27,10 +23,11 @@ func (*PlanningVsExecution) ID() string         { return "planning_vs_execution"
 func (*PlanningVsExecution) Name() string       { return "Planning exceeds execution" }
 func (*PlanningVsExecution) Category() Category { return CategoryPrescriptive }
 
-func (r *PlanningVsExecution) Check(p *plan.Plan) []Finding {
-	if p == nil {
+func (r *PlanningVsExecution) Check(ctx *RuleContext) []Finding {
+	if ctx == nil || ctx.Plan == nil {
 		return nil
 	}
+	p := ctx.Plan
 	if p.PlanningTimeMs <= 0 || p.ExecutionTimeMs <= 0 {
 		return nil
 	}

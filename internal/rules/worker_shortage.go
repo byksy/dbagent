@@ -15,10 +15,11 @@ func (*WorkerShortage) ID() string         { return "worker_shortage" }
 func (*WorkerShortage) Name() string       { return "Parallel worker shortage" }
 func (*WorkerShortage) Category() Category { return CategoryDiagnostic }
 
-func (r *WorkerShortage) Check(p *plan.Plan) []Finding {
-	if p == nil || p.Root == nil {
+func (r *WorkerShortage) Check(ctx *RuleContext) []Finding {
+	if ctx == nil || ctx.Plan == nil || ctx.Plan.Root == nil {
 		return nil
 	}
+	p := ctx.Plan
 	var out []Finding
 	for _, n := range p.AllNodes() {
 		if n.NeverExecuted {

@@ -1,0 +1,12 @@
+database:
+  host: localhost
+  port: 5432
+  user: postgres
+  password: postgres
+  database: postgres
+  sslmode: disable
+output:
+  limit: 20
+  order_by: total
+log:
+  level: info

@@ -1,17 +1,17 @@
-Plan (total: 3.4ms, planning: 0.3ms, execution: 3.1ms)
+Plan (total: 3.4ms, planning: 0.3ms, execution: 3.2ms)
 
   #  time   excl%  rows    misest   loops  node
   1  0.0ms  0.1%   42      1.0×     1      Limit
-  2  0.2ms  7.3%   42      98.8× ↑  1       └ Sort
-  3  0.7ms  21.6%  4,160   1.0×     1        └ Hash Join
-  4  1.9ms  56.0%  12,500  1.0×     1         └ Seq Scan on orders o
+  2  0.2ms  7.2%   42      99.3× ↑  1       └ Sort
+  3  0.7ms  21.2%  4,160   1.0×     1        └ Hash Join
+  4  1.9ms  56.2%  12,500  1.0×     1         └ Seq Scan on orders o
   5  0.1ms  2.9%   1,666   1.0×     1         └ Hash
-  6  0.1ms  2.9%   1,666   1.0×     1          └ Bitmap Heap Scan on customers c
-  7  0.0ms  0.7%   1,666   1.0×     1           └ Bitmap Index Scan
+  6  0.1ms  3.2%   1,666   1.0×     1          └ Bitmap Heap Scan on customers c
+  7  0.0ms  0.8%   1,666   1.0×     1           └ Bitmap Index Scan
 
 Summary
   Slowest node (exclusive):  [4] Seq Scan on orders o — 1.9ms (56% of total)
-  Biggest row misestimate:   [2] Sort — planned 4,148, actual 42 (98.8× over)
+  Biggest row misestimate:   [2] Sort — planned 4,169, actual 42 (99.3× over)
 
 Findings
   INFO      [4] Seq Scan on orders o

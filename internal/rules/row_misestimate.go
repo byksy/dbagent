@@ -2,6 +2,7 @@ package rules
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/byksy/dbagent/internal/plan"
 )
@@ -21,6 +22,11 @@ const (
 	// generating findings.
 	misestimateMinExclusiveMs = 1.0
 	misestimateMinRowsTotal   = 100
+
+	// Stale-analyze bump: when schema is loaded and the table's last
+	// ANALYZE is older than this, escalate severity one tier. Makes
+	// "misestimate + stale stats" easy to spot at a glance.
+	misestimateStaleAnalyzeAge = 7 * 24 * time.Hour
 )
 
 // RowMisestimate flags nodes where the planner's per-loop row
@@ -31,10 +37,11 @@ func (*RowMisestimate) ID() string         { return "row_misestimate" }
 func (*RowMisestimate) Name() string       { return "Row misestimate" }
 func (*RowMisestimate) Category() Category { return CategoryDiagnostic }
 
-func (r *RowMisestimate) Check(p *plan.Plan) []Finding {
-	if p == nil || p.Root == nil {
+func (r *RowMisestimate) Check(ctx *RuleContext) []Finding {
+	if ctx == nil || ctx.Plan == nil || ctx.Plan.Root == nil {
 		return nil
 	}
+	p := ctx.Plan
 	var out []Finding
 	for _, n := range p.AllNodes() {
 		if n.NeverExecuted {
@@ -72,6 +79,25 @@ func (r *RowMisestimate) Check(p *plan.Plan) []Finding {
 			"actual_rows": n.ActualRows,
 			"factor":      factor,
 			"direction":   dir,
+		}
+
+		// When schema is loaded, annotate with last-analyze age and
+		// bump severity a tier if the table hasn't been ANALYZEd in
+		// a week. This makes the common root-cause (stale stats)
+		// jump off the page.
+		if ctx.Schema != nil && n.RelationName != "" && isBaseScan(n.NodeType) {
+			if table := ctx.Schema.FindTable(qualifiedName(n)); table != nil && !table.LastAnalyzed.IsZero() {
+				age := time.Since(table.LastAnalyzed)
+				ev["last_analyzed"] = table.LastAnalyzed.Format(time.RFC3339)
+				ev["analyze_age_hours"] = age.Hours()
+				if age > misestimateStaleAnalyzeAge {
+					if sev < SeverityCritical {
+						sev++
+					}
+					days := int(age.Hours() / 24)
+					msg += fmt.Sprintf(" Last ANALYZE was %d days ago.", days)
+				}
+			}
 		}
 
 		f := newFinding(r, n.ID, sev, msg, ev)

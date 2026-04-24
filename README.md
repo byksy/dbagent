@@ -4,9 +4,9 @@
 
 ## What it is
 
-`dbagent` is a command-line tool for investigating PostgreSQL query performance from your terminal. It reads `pg_stat_statements` to show the top queries on a live server (`dbagent top`), parses `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` output into a typed plan tree, and runs diagnostic and prescriptive rules to point out hot nodes, misestimates, missing indexes, and more (`dbagent analyze`). Every invocation is a single command — there is no daemon, no background agent, and nothing is ever written to your database.
+`dbagent` is a command-line tool for investigating PostgreSQL query performance from your terminal. It reads `pg_stat_statements` to show the top queries on a live server (`dbagent top`), parses `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` output into a typed plan tree, and runs schema-aware diagnostic and prescriptive rules to point out hot nodes, misestimates, missing indexes, and more (`dbagent analyze`). It can also export a full schema snapshot (`dbagent schema export`) for offline analysis away from the live database. Every invocation is a single command — there is no daemon, no background agent, and nothing is ever written to your database.
 
-The tool is being built in stages. Upcoming work includes schema introspection (so we don't suggest indexes that already exist), an expanded rule set, `hypopg` simulation, and optional LLM-assisted explanations.
+The tool is being built in stages. Upcoming work includes an expanded rule set, `hypopg` simulation, and optional LLM-assisted explanations.
 
 ## Requirements
 
@@ -158,6 +158,7 @@ Parse and render an `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` plan from a file o
 ```
 --plan-file string       path to EXPLAIN JSON file; empty means read from stdin
 --format string          output format: tree (default), table, json
+--schema string          schema.json for offline analysis; --schema= opts out of live fetch
 --fail-on string         exit code 7 if any finding reaches this severity: info|warning|critical
 ```
 
@@ -208,6 +209,30 @@ EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) <your query>
 
 Only JSON format is supported in this version. TEXT/YAML/XML will produce a clear error.
 
+### `dbagent schema`
+
+Print a human-readable schema overview — tables, indexes, and foreign keys — using the live database connection.
+
+```bash
+dbagent schema
+```
+
+Use this to verify that `dbagent` sees the schema you expect before running `analyze`.
+
+### `dbagent schema export`
+
+Write the full schema as JSON to stdout. Useful when you want to run `analyze` against plans captured from a database you can't (or shouldn't) connect to directly:
+
+```bash
+# On a host with DB access
+dbagent schema export > schema.json
+
+# Elsewhere / later
+dbagent analyze --plan-file plan.json --schema schema.json
+```
+
+The export carries a timestamp. `analyze --schema` prints a warning when the export is older than 24 hours, but still proceeds.
+
 ### `dbagent version`
 
 Print version and runtime info:
@@ -221,8 +246,8 @@ go1.22.x linux/amd64
 
 1. ✓ Stage 1 — pg_stat_statements reader (`top` command)
 2. ✓ Stage 2 — EXPLAIN plan parser, `analyze` command (offline tree/table/JSON rendering + summary)
-3. ✓ **Stage 3 — Rule engine: first eight diagnostic and prescriptive findings** *(current — see [`docs/rules.md`](docs/rules.md))*
-4. Stage 4 — Schema introspection (avoid suggesting indexes that already exist)
+3. ✓ Stage 3 — Rule engine: first eight diagnostic and prescriptive findings
+4. ✓ **Stage 4 — Schema introspection, `schema` + `schema export` commands, schema-aware rules, `fk_missing_index` finding** *(current — see [`docs/rules.md`](docs/rules.md))*
 5. Stage 5 — Extended rule set (15-20 rules)
 6. Stage 6 — Output formats (JSON, Markdown) and shareable reports
 7. Stage 7 — Homebrew, precompiled binaries (GoReleaser + GitHub Actions)

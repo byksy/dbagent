@@ -129,7 +129,7 @@ func TestRenderTree_Golden(t *testing.T) {
 		t.Run(tc.fixture, func(t *testing.T) {
 			p := loadPlanFixture(t, tc.fixture)
 			var buf bytes.Buffer
-			if err := renderTree(&buf, p, plan.Summarize(p), rules.Run(p, rules.Default())); err != nil {
+			if err := renderTree(&buf, p, plan.Summarize(p), rules.Run(&rules.RuleContext{Plan: p}, rules.Default())); err != nil {
 				t.Fatalf("renderTree: %v", err)
 			}
 			checkGolden(t, filepath.Join(goldenDir, tc.golden), buf.String())
@@ -149,7 +149,7 @@ func TestRenderTable_Golden(t *testing.T) {
 		t.Run(tc.fixture, func(t *testing.T) {
 			p := loadPlanFixture(t, tc.fixture)
 			var buf bytes.Buffer
-			if err := renderTable(&buf, p, plan.Summarize(p), rules.Run(p, rules.Default())); err != nil {
+			if err := renderTable(&buf, p, plan.Summarize(p), rules.Run(&rules.RuleContext{Plan: p}, rules.Default())); err != nil {
 				t.Fatalf("renderTable: %v", err)
 			}
 			checkGolden(t, filepath.Join(goldenDir, tc.golden), buf.String())
@@ -160,7 +160,7 @@ func TestRenderTable_Golden(t *testing.T) {
 func TestRenderJSON_Structure(t *testing.T) {
 	p := loadPlanFixture(t, "real/hash_join_with_filter.json")
 	var buf bytes.Buffer
-	if err := renderJSON(&buf, p, plan.Summarize(p), rules.Run(p, rules.Default())); err != nil {
+	if err := renderJSON(&buf, p, plan.Summarize(p), rules.Run(&rules.RuleContext{Plan: p}, rules.Default())); err != nil {
 		t.Fatalf("renderJSON: %v", err)
 	}
 	var out map[string]any
@@ -187,7 +187,7 @@ func TestRenderJSON_Structure(t *testing.T) {
 func TestRenderTree_NeverExecuted_NoPanic(t *testing.T) {
 	p := loadPlanFixture(t, "synthetic/never_executed_branch.json")
 	var buf bytes.Buffer
-	if err := renderTree(&buf, p, plan.Summarize(p), rules.Run(p, rules.Default())); err != nil {
+	if err := renderTree(&buf, p, plan.Summarize(p), rules.Run(&rules.RuleContext{Plan: p}, rules.Default())); err != nil {
 		t.Fatalf("renderTree: %v", err)
 	}
 	if !strings.Contains(buf.String(), "(never executed)") {
@@ -198,7 +198,7 @@ func TestRenderTree_NeverExecuted_NoPanic(t *testing.T) {
 func TestRenderTree_UnknownNodeType_NoPanic(t *testing.T) {
 	p := loadPlanFixture(t, "synthetic/unknown_node_type.json")
 	var buf bytes.Buffer
-	if err := renderTree(&buf, p, plan.Summarize(p), rules.Run(p, rules.Default())); err != nil {
+	if err := renderTree(&buf, p, plan.Summarize(p), rules.Run(&rules.RuleContext{Plan: p}, rules.Default())); err != nil {
 		t.Fatalf("renderTree: %v", err)
 	}
 	if !strings.Contains(buf.String(), "Imaginary Scan") {

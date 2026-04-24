@@ -17,7 +17,7 @@ func TestHotNode(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			p := loadRuleFixture(t, "hot_node", tc.fixture)
-			findings := rule.Check(p)
+			findings := rule.Check(newContext(p))
 			if len(findings) != tc.wantCount {
 				t.Fatalf("got %d findings, want %d: %+v", len(findings), tc.wantCount, findings)
 			}
@@ -43,7 +43,7 @@ func TestHotNode_SkipsNeverExecuted(t *testing.T) {
 	for _, n := range p.AllNodes() {
 		n.NeverExecuted = true
 	}
-	if f := (&HotNode{}).Check(p); len(f) != 0 {
+	if f := (&HotNode{}).Check(newContext(p)); len(f) != 0 {
 		t.Errorf("NeverExecuted nodes should be skipped, got %d findings", len(f))
 	}
 }

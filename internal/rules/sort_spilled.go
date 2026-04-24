@@ -19,10 +19,11 @@ func (*SortSpilled) ID() string         { return "sort_spilled" }
 func (*SortSpilled) Name() string       { return "Sort spilled to disk" }
 func (*SortSpilled) Category() Category { return CategoryPrescriptive }
 
-func (r *SortSpilled) Check(p *plan.Plan) []Finding {
-	if p == nil || p.Root == nil {
+func (r *SortSpilled) Check(ctx *RuleContext) []Finding {
+	if ctx == nil || ctx.Plan == nil || ctx.Plan.Root == nil {
 		return nil
 	}
+	p := ctx.Plan
 	var out []Finding
 	for _, n := range p.AllNodes() {
 		if n.NeverExecuted {
