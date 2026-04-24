@@ -1,0 +1,65 @@
+[
+  {
+    "Plan": {
+      "Node Type": "Nested Loop",
+      "Join Type": "Inner",
+      "Startup Cost": 0.57,
+      "Total Cost": 16.61,
+      "Plan Rows": 1,
+      "Plan Width": 80,
+      "Actual Startup Time": 0.020,
+      "Actual Total Time": 0.023,
+      "Actual Rows": 1,
+      "Actual Loops": 1,
+      "Inner Unique": true,
+      "Shared Hit Blocks": 6,
+      "Shared Read Blocks": 0,
+      "Shared Dirtied Blocks": 0,
+      "Shared Written Blocks": 0,
+      "Plans": [
+        {
+          "Node Type": "Index Scan",
+          "Parent Relationship": "Outer",
+          "Relation Name": "orders",
+          "Alias": "o",
+          "Index Name": "orders_pkey",
+          "Startup Cost": 0.29,
+          "Total Cost": 8.30,
+          "Plan Rows": 1,
+          "Plan Width": 12,
+          "Actual Startup Time": 0.010,
+          "Actual Total Time": 0.010,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Index Cond": "(id = 12345)",
+          "Shared Hit Blocks": 3,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0
+        },
+        {
+          "Node Type": "Index Scan",
+          "Parent Relationship": "Inner",
+          "Relation Name": "customers",
+          "Alias": "c",
+          "Index Name": "customers_pkey",
+          "Startup Cost": 0.28,
+          "Total Cost": 8.30,
+          "Plan Rows": 1,
+          "Plan Width": 68,
+          "Actual Startup Time": 0.008,
+          "Actual Total Time": 0.008,
+          "Actual Rows": 1,
+          "Actual Loops": 1,
+          "Index Cond": "(id = o.customer_id)",
+          "Shared Hit Blocks": 3,
+          "Shared Read Blocks": 0,
+          "Shared Dirtied Blocks": 0,
+          "Shared Written Blocks": 0
+        }
+      ]
+    },
+    "Planning Time": 0.2,
+    "Execution Time": 0.05
+  }
+]

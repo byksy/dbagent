@@ -1,0 +1,25 @@
+Plan (total: 125.3ms, planning: 0.3ms, execution: 125.0ms)
+
+[1] Seq Scan on rule_orders  rows=5,000  time=120.0ms  loops=1  ✗
+    filter=(status = 'shipped'::text)  filter_removed=495,000
+    buffers: shared hit=8,000 read=0
+
+Summary
+  Slowest node (exclusive):  [1] Seq Scan on rule_orders — 120.0ms (96% of total)
+  Worst filter ratio:        [1] Seq Scan on rule_orders — 1% rows kept (495,000 removed)
+
+Findings
+  CRITICAL  [1]
+            └─ filter_removal_ratio
+               99% of rows read are discarded by filter (495000 rows removed, 5000 kept).
+
+  CRITICAL  [1]
+            └─ hot_node
+               This node accounts for 96% of total query time (120.0ms of 125.3ms).
+
+  CRITICAL  [1]
+            └─ missing_index_on_filter
+               Filter removes 99% of rows scanned (495000 rows). Consider an index to push the predicate down.
+               Suggested: CREATE INDEX ON rule_orders (status);
+
+3 findings (3 critical)

@@ -14,13 +14,14 @@ import (
 // Exit codes. Each command returns an *ExitError carrying one of these
 // when it wants to override the default cobra exit code of 1.
 const (
-	ExitOK           = 0
-	ExitUsageError   = 1
-	ExitNoConfig     = 2
-	ExitExtNotReady  = 3
-	ExitConnFailed   = 4
-	ExitInternal     = 5
-	ExitParseFailed  = 6
+	ExitOK                     = 0
+	ExitUsageError             = 1
+	ExitNoConfig               = 2
+	ExitExtNotReady            = 3
+	ExitConnFailed             = 4
+	ExitInternal               = 5
+	ExitParseFailed            = 6
+	ExitFindingsAboveThreshold = 7
 )
 
 // ExitError is a typed error that carries a process exit code, so that

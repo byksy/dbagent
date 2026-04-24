@@ -12,3 +12,18 @@ Plan (total: 3.4ms, planning: 0.3ms, execution: 3.1ms)
 Summary
   Slowest node (exclusive):  [4] Seq Scan on orders o — 1.9ms (56% of total)
   Biggest row misestimate:   [2] Sort — planned 4,148, actual 42 (98.8× over)
+
+Findings
+  WARNING   [4]
+            └─ hot_node
+               This node accounts for 56% of total query time (1.9ms of 3.4ms).
+
+  INFO      [4]
+            └─ filter_removal_ratio
+               75% of rows read are discarded by filter (37500 rows removed, 12500 kept).
+
+  INFO      [2]
+            └─ row_misestimate
+               Planner estimated 4148 rows, actual is 42 (98.8× over).
+
+3 findings (1 warning, 2 info)

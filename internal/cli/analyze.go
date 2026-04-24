@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/byksy/dbagent/internal/plan"
+	"github.com/byksy/dbagent/internal/rules"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -15,6 +16,7 @@ import (
 type analyzeFlags struct {
 	planFile string
 	format   string
+	failOn   string
 }
 
 // newAnalyzeCmd builds the "analyze" subcommand.
@@ -23,8 +25,8 @@ func newAnalyzeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "analyze",
 		Short: "Parse and render an EXPLAIN (FORMAT JSON) plan",
-		Long: `Parse a PostgreSQL execution plan produced by EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)
-and render it as a tree or table with a summary of notable nodes.
+		Long: `Parse a PostgreSQL execution plan produced by EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON),
+render it, and run diagnostic/prescriptive rules.
 
 This version is offline-only: the plan must be provided via --plan-file or stdin.
 Live analysis via --queryid or --sql will come in a future release.
@@ -33,18 +35,33 @@ Examples:
   dbagent analyze --plan-file plan.json
   cat plan.json | dbagent analyze
   dbagent analyze --plan-file plan.json --format table
-  dbagent analyze --plan-file plan.json --format json`,
+  dbagent analyze --plan-file plan.json --format json
+  dbagent analyze --plan-file plan.json --fail-on warning`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runAnalyze(cmd, f)
 		},
 	}
 	cmd.Flags().StringVar(&f.planFile, "plan-file", "", "path to EXPLAIN JSON file; empty means read from stdin")
 	cmd.Flags().StringVar(&f.format, "format", "tree", "output format: tree|table|json")
+	cmd.Flags().StringVar(&f.failOn, "fail-on", "", "exit non-zero if any finding reaches this severity: info|warning|critical")
 	return cmd
 }
 
-// runAnalyze orchestrates reading, parsing, summarising, and rendering.
+// runAnalyze orchestrates reading, parsing, running rules, and
+// rendering. If --fail-on is set and at least one finding meets the
+// threshold, the command exits with ExitFindingsAboveThreshold.
 func runAnalyze(cmd *cobra.Command, f *analyzeFlags) error {
+	var failOnThreshold rules.Severity
+	var failOnSet bool
+	if f.failOn != "" {
+		sev, err := rules.ParseSeverity(f.failOn)
+		if err != nil {
+			return newExitError(ExitUsageError, err)
+		}
+		failOnThreshold = sev
+		failOnSet = true
+	}
+
 	reader, source, closer, err := openPlanInput(cmd, f.planFile)
 	if err != nil {
 		return newExitError(ExitUsageError, err)
@@ -67,18 +84,47 @@ func runAnalyze(cmd *cobra.Command, f *analyzeFlags) error {
 	p.SourceDescription = source
 
 	summary := plan.Summarize(p)
+	findings := rules.Run(p, rules.Default())
 	w := cmd.OutOrStdout()
 
 	switch f.format {
 	case "", "tree":
-		return renderTree(w, p, summary)
+		if err := renderTree(w, p, summary, findings); err != nil {
+			return err
+		}
 	case "table":
-		return renderTable(w, p, summary)
+		if err := renderTable(w, p, summary, findings); err != nil {
+			return err
+		}
 	case "json":
-		return renderJSON(w, p, summary)
+		if err := renderJSON(w, p, summary, findings); err != nil {
+			return err
+		}
 	default:
 		return newExitError(ExitUsageError, fmt.Errorf("invalid --format %q, expected tree|table|json", f.format))
 	}
+
+	if failOnSet {
+		for _, fd := range findings {
+			if fd.Severity >= failOnThreshold {
+				return newExitError(ExitFindingsAboveThreshold,
+					fmt.Errorf("%d finding(s) at or above %s", countAtOrAbove(findings, failOnThreshold), failOnThreshold))
+			}
+		}
+	}
+	return nil
+}
+
+// countAtOrAbove returns the number of findings at or above thr. Used
+// to produce a more informative exit-error message than a bare flag.
+func countAtOrAbove(findings []rules.Finding, thr rules.Severity) int {
+	n := 0
+	for _, f := range findings {
+		if f.Severity >= thr {
+			n++
+		}
+	}
+	return n
 }
 
 // openPlanInput resolves the analyze command's input source. Returns
@@ -98,4 +144,3 @@ func openPlanInput(cmd *cobra.Command, path string) (io.Reader, string, func(), 
 	}
 	return stdin, "<stdin>", nil, nil
 }
-
