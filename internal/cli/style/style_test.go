@@ -56,15 +56,23 @@ func TestBox_RendersBorder(t *testing.T) {
 			t.Errorf("Box missing %q: %q", want, out)
 		}
 	}
-	// Rounded border glyph should appear since width > minBoxWidth.
-	if !strings.ContainsAny(out, "╭╰╮╯") {
-		t.Errorf("Box expected rounded border glyphs, got %q", out)
+	// Sharp corners + horizontal/vertical rules should appear since
+	// width > minBoxWidth.
+	for _, glyph := range []string{"┌", "┐", "└", "┘", "│", "─"} {
+		if !strings.Contains(out, glyph) {
+			t.Errorf("Box expected border glyph %q, got %q", glyph, out)
+		}
+	}
+	// Title must sit inside the top border, not on an interior line.
+	lines := strings.Split(out, "\n")
+	if len(lines) == 0 || !strings.Contains(lines[0], "Test Title") {
+		t.Errorf("title should be embedded in top border, got first line %q", lines[0])
 	}
 }
 
 func TestBox_CompactFallback(t *testing.T) {
 	out := Box("Narrow", "content", 40)
-	if strings.ContainsAny(out, "╭╰╮╯") {
+	if strings.ContainsAny(out, "┌└┐┘│") {
 		t.Errorf("narrow Box should skip borders, got %q", out)
 	}
 	if !strings.Contains(out, "Narrow") || !strings.Contains(out, "content") {

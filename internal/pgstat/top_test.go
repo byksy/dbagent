@@ -46,7 +46,7 @@ func TestBuildTopQuery_OrderBy(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sql, err := buildTopQuery(tt.orderBy)
+			sql, err := buildTopQuery(tt.orderBy, false)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got nil (sql=%q)", sql)
@@ -67,7 +67,7 @@ func TestBuildTopQuery_OrderBy(t *testing.T) {
 }
 
 func TestBuildTopQuery_Cache_ASC(t *testing.T) {
-	sql, err := buildTopQuery("cache")
+	sql, err := buildTopQuery("cache", false)
 	if err != nil {
 		t.Fatalf("buildTopQuery(cache): %v", err)
 	}
@@ -83,7 +83,7 @@ func TestBuildTopQuery_Cache_ASC(t *testing.T) {
 
 func TestBuildTopQuery_NoUserInputInterpolation(t *testing.T) {
 	// A malicious order_by must not sneak into the generated SQL.
-	_, err := buildTopQuery("total_exec_time; DROP TABLE users--")
+	_, err := buildTopQuery("total_exec_time; DROP TABLE users--", false)
 	if err == nil {
 		t.Fatalf("expected rejection of non-whitelisted order_by")
 	}

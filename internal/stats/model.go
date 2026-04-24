@@ -98,6 +98,7 @@ type Options struct {
 	TopN          int
 	SinceMinutes  int      // purely informational; Compute passes this through to the SQL filter
 	ExcludeRegexp []string // skip queries whose text matches any of these patterns
+	IncludeSystem bool     // disable the default noise filter (pg_catalog, SET/SHOW, VACUUM, ...)
 }
 
 // DefaultOptions returns the default tuning (TopN=10, no filters).

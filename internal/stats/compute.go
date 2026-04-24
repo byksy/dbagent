@@ -17,7 +17,8 @@ import (
 // tests can exercise the math without a live database.
 func Compute(ctx context.Context, pool *pgxpool.Pool, opts Options) (*WorkloadStats, error) {
 	raw, wmeta, err := pgstat.FetchWorkload(ctx, pool, pgstat.WorkloadOptions{
-		SinceMinutes: opts.SinceMinutes,
+		SinceMinutes:  opts.SinceMinutes,
+		IncludeSystem: opts.IncludeSystem,
 	})
 	if err != nil {
 		return nil, err

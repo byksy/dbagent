@@ -77,13 +77,19 @@ func writeStatsOverview(w io.Writer, ws *stats.WorkloadStats, width int) {
 	if ws.TotalTimeMs > 0 {
 		readShare := ws.ReadTimeMs / ws.TotalTimeMs
 		writeShare := ws.WriteTimeMs / ws.TotalTimeMs
-		// Reads/writes is a compound split, so show two trailing
-		// percentages and drop the bar's own number to avoid the
-		// visual duplication ("69.6%  70% / 30%").
-		bar := style.ProgressBar(readShare, barWidth, style.ColorBarFill, style.ColorBarEmpty)
-		fmt.Fprintf(&b, "Read/write:   %s  %s reads / %s writes\n",
-			stripTrailingPercent(bar),
-			formatPctShort(readShare), formatPctShort(writeShare))
+		otherShare := 1 - readShare - writeShare
+		if otherShare < 0 {
+			otherShare = 0
+		}
+		// Three-way text split so DDL / maintenance / transaction
+		// control isn't invisible. Sum is always 100% (within
+		// rounding), which the single-bar version couldn't honestly
+		// claim — it showed "2% / 60%" even when the rest of the
+		// workload was 38% other.
+		fmt.Fprintf(&b, "Read/write:   reads %s · writes %s · other %s\n",
+			style.StyleSuccess.Render(formatPctShort(readShare)),
+			style.StyleInfo.Render(formatPctShort(writeShare)),
+			style.StyleMuted.Render(formatPctShort(otherShare)))
 	}
 	if ws.CacheHitRatio >= 0 {
 		fill := style.ColorBarFill
@@ -243,23 +249,6 @@ func writeStatsRecommendations(w io.Writer, ws *stats.WorkloadStats, width int) 
 		}
 	}
 	fmt.Fprint(w, style.Box("Recommendations", b.String(), width))
-}
-
-// stripTrailingPercent drops the " NN.N%" tail from a ProgressBar's
-// rendering so callers that want to show their own trailing text
-// (e.g., the Overview's read/write split) don't print duplicate
-// percentages. Falls back to returning the input unchanged if the
-// expected shape isn't found.
-func stripTrailingPercent(bar string) string {
-	idx := strings.LastIndexByte(bar, ' ')
-	if idx < 0 {
-		return bar
-	}
-	tail := bar[idx+1:]
-	if !strings.HasSuffix(tail, "%") {
-		return bar
-	}
-	return strings.TrimRight(bar[:idx], " ")
 }
 
 // truncateStatsText collapses whitespace and cuts to width runes.

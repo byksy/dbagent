@@ -13,11 +13,12 @@ import (
 
 // statsFlags captures the per-invocation options for `dbagent stats`.
 type statsFlags struct {
-	format   string
-	topN     int
-	since    int
-	exclude  []string
-	noColor  bool
+	format        string
+	topN          int
+	since         int
+	exclude       []string
+	noColor       bool
+	includeSystem bool
 }
 
 // newStatsCmd builds the `dbagent stats` subcommand. It is the first
@@ -47,6 +48,7 @@ Examples:
 	cmd.Flags().IntVar(&f.since, "since", 0, "filter: stats from last N minutes (0 = all)")
 	cmd.Flags().StringSliceVar(&f.exclude, "exclude", nil, "exclude queries matching these regex patterns")
 	cmd.Flags().BoolVar(&f.noColor, "no-color", false, "force no-color output (NO_COLOR env var also respected)")
+	cmd.Flags().BoolVar(&f.includeSystem, "include-system", false, "include pg_catalog / SET / SHOW / VACUUM / ANALYZE queries (excluded by default)")
 	return cmd
 }
 
@@ -92,6 +94,7 @@ func runStats(cmd *cobra.Command, f *statsFlags) error {
 		TopN:          f.topN,
 		SinceMinutes:  f.since,
 		ExcludeRegexp: f.exclude,
+		IncludeSystem: f.includeSystem,
 	})
 	if err != nil {
 		return newExitError(ExitInternal, err)

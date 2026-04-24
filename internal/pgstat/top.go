@@ -12,7 +12,11 @@ import (
 // TopOptions configures a TopQueries call.
 type TopOptions struct {
 	Limit   int
-	OrderBy string // "total" | "mean" | "calls"
+	OrderBy string // "total" | "mean" | "calls" | "io" | "cache"
+	// IncludeSystem disables the default noise filter (pg_catalog
+	// scans, transaction-control, maintenance commands). Off by
+	// default so `dbagent top` shows user workload.
+	IncludeSystem bool
 }
 
 // QueryStat is one row from pg_stat_statements.
@@ -51,7 +55,8 @@ var orderDirection = map[string]string{
 
 // topQueryTemplate is the base SQL for reading the top N queries.
 // The ORDER BY expression is substituted from allowedOrderBy +
-// orderDirection; the LIMIT is a parameterised placeholder.
+// orderDirection; the noise-filter block and the LIMIT placeholder
+// are spliced in by buildTopQuery.
 const topQueryTemplate = `SELECT
     queryid,
     query,
@@ -62,20 +67,19 @@ const topQueryTemplate = `SELECT
     shared_blks_hit,
     shared_blks_read
 FROM pg_stat_statements
-WHERE query NOT ILIKE '%%pg_stat_statements%%'
-  AND query NOT ILIKE '%%pg_extension%%'
+WHERE TRUE%s
 ORDER BY %s %s
 LIMIT $1`
 
 // buildTopQuery returns the SQL for TopQueries given an OrderBy option.
 // An error is returned when OrderBy is not in the allowed set.
-func buildTopQuery(orderBy string) (string, error) {
+func buildTopQuery(orderBy string, includeSystem bool) (string, error) {
 	col, ok := allowedOrderBy[orderBy]
 	if !ok {
 		return "", fmt.Errorf("pgstat: invalid order_by %q, expected one of [total, mean, calls, io, cache]", orderBy)
 	}
 	dir := orderDirection[orderBy]
-	return fmt.Sprintf(topQueryTemplate, col, dir), nil
+	return fmt.Sprintf(topQueryTemplate, systemQueryFilterSQL(includeSystem), col, dir), nil
 }
 
 // TopQueries returns up to opts.Limit rows from pg_stat_statements,
@@ -85,7 +89,7 @@ func TopQueries(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) ([]Que
 	if opts.Limit < 1 {
 		return nil, fmt.Errorf("pgstat: limit must be >= 1, got %d", opts.Limit)
 	}
-	sql, err := buildTopQuery(opts.OrderBy)
+	sql, err := buildTopQuery(opts.OrderBy, opts.IncludeSystem)
 	if err != nil {
 		return nil, err
 	}

@@ -142,6 +142,7 @@ Print the top queries from `pg_stat_statements`.
 ```
 --limit int              number of queries to show (default: from config)
 --order-by string        order by: total|mean|calls (default: from config)
+--include-system         include pg_catalog / SET / SHOW / VACUUM / ANALYZE queries (excluded by default)
 -v, --verbose            add rows, cache hit%, and blocks-read columns
 ```
 
@@ -254,6 +255,7 @@ Flags:
 --top int                 rows per section (default 10, max 50)
 --since int               filter: stats from last N minutes (0 = all)
 --exclude strings         regex patterns to skip
+--include-system          include pg_catalog / SET / SHOW / VACUUM / ANALYZE queries (excluded by default)
 --no-color                force plain text even on a TTY
 ```
 

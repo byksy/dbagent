@@ -39,6 +39,7 @@ type htmlOverview struct {
 	TotalQueries     int64
 	ReadShare        float64
 	WriteShare       float64
+	OtherShare       float64
 	CacheHitRatio    float64
 	CacheHitSeverity string
 }
@@ -82,6 +83,11 @@ func newHTMLData(ws *stats.WorkloadStats) htmlData {
 	if ws.TotalTimeMs > 0 {
 		d.Overview.ReadShare = ws.ReadTimeMs / ws.TotalTimeMs
 		d.Overview.WriteShare = ws.WriteTimeMs / ws.TotalTimeMs
+		other := 1 - d.Overview.ReadShare - d.Overview.WriteShare
+		if other < 0 {
+			other = 0
+		}
+		d.Overview.OtherShare = other
 	}
 	d.Overview.TotalTimeMs = ws.TotalTimeMs
 	d.Overview.TotalExecutions = ws.TotalExecutions
@@ -304,6 +310,30 @@ td.query { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-siz
 .bar.critical .fill { background: var(--color-critical); }
 .bar.warning  .fill { background: var(--color-warning); }
 .bar.ok       .fill { background: var(--color-success); }
+.split {
+  display: inline-flex;
+  width: 160px;
+  height: 10px;
+  background: var(--color-bar-empty);
+  border-radius: 5px;
+  overflow: hidden;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+.split-read  { background: var(--color-success); }
+.split-write { background: var(--color-info); }
+.split-other { background: var(--color-muted); }
+.legend { font-size: 0.9em; color: var(--color-muted); }
+.sw {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: baseline;
+}
+.sw-read  { background: var(--color-success); }
+.sw-write { background: var(--color-info); }
+.sw-other { background: var(--color-muted); }
 .rec {
   margin: 12px 0;
   padding: 10px 14px;
@@ -350,9 +380,11 @@ td.query { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-siz
 <tr><th>Total DB time</th><td class="num">{{ ms .Overview.TotalTimeMs }}</td></tr>
 <tr><th>Executions</th><td class="num">{{ commas .Overview.TotalExecutions }} across {{ commas .Overview.TotalQueries }} unique queries</td></tr>
 {{ if gt .Overview.TotalTimeMs 0.0 }}
-<tr><th>Read share</th><td>
-  <span class="bar"><span class="fill" style="width: {{ ratioToWidth .Overview.ReadShare }}"></span></span>
-  {{ pctInt .Overview.ReadShare }} reads / {{ pctInt .Overview.WriteShare }} writes
+<tr><th>Read/write</th><td>
+  <span class="split">
+    <span class="split-read" style="width: {{ ratioToWidth .Overview.ReadShare }}"></span><span class="split-write" style="width: {{ ratioToWidth .Overview.WriteShare }}"></span><span class="split-other" style="width: {{ ratioToWidth .Overview.OtherShare }}"></span>
+  </span>
+  <span class="legend"><span class="sw sw-read"></span> {{ pctInt .Overview.ReadShare }} reads &middot; <span class="sw sw-write"></span> {{ pctInt .Overview.WriteShare }} writes &middot; <span class="sw sw-other"></span> {{ pctInt .Overview.OtherShare }} other</span>
 </td></tr>
 {{ end }}
 {{ if ge .Overview.CacheHitRatio 0.0 }}

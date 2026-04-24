@@ -26,7 +26,8 @@ const defaultBoxWidth = 80
 // no borders.
 const minBoxWidth = 60
 
-// Box wraps content in a titled, bordered rectangle. The width
+// Box wraps content in a titled, bordered rectangle with the title
+// embedded in the top border ("┌─ Title ──────┐"). The width
 // argument is the total outer width including borders; 0 picks the
 // default. Content is rendered as-is, so callers should pre-wrap it
 // to width-4 (two border columns + two padding columns).
@@ -43,23 +44,51 @@ func Box(title, content string, width int) string {
 		return compactBox(title, content)
 	}
 
-	// Lipgloss's Border() draws the box for us and handles ANSI
-	// boundaries correctly; we just need to prepare the body and a
-	// title line that sits inside.
-	innerWidth := width - 2 // leave room for the two border chars
-	titleLine := StyleSectionTitle.Render(" " + title + " ")
-	body := lipgloss.NewStyle().
-		Width(innerWidth).
-		Padding(0, 1).
-		Render(content)
+	innerWidth := width - 2 // space between the two vertical border chars
 
-	box := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(ColorBorder).
-		Width(innerWidth).
-		Render(titleLine + "\n\n" + body)
+	borderStyle := lipgloss.NewStyle().Foreground(ColorBorder)
+	titleStyle := StyleSectionTitle
 
-	return box
+	// Top border: "┌─ Title ───...───┐". Reserve a minimum of two
+	// trailing dashes so the label never butts against the corner.
+	const titlePrefix = "─ "
+	const titleSuffix = " "
+	titleVisual := len([]rune(titlePrefix)) + len([]rune(title)) + len([]rune(titleSuffix))
+	dashCount := innerWidth - titleVisual
+	if dashCount < 2 {
+		dashCount = 2
+	}
+	top := borderStyle.Render("┌"+titlePrefix) +
+		titleStyle.Render(title) +
+		borderStyle.Render(titleSuffix+strings.Repeat("─", dashCount)+"┐")
+
+	// Body lines: "│ {line padded to innerWidth-2} │" — the -2 leaves
+	// one padding column on each side inside the verticals.
+	contentInner := innerWidth - 2
+	if contentInner < 1 {
+		contentInner = 1
+	}
+	leftWall := borderStyle.Render("│") + " "
+	rightWall := " " + borderStyle.Render("│")
+
+	var body strings.Builder
+	lines := strings.Split(strings.TrimRight(content, "\n"), "\n")
+	for _, line := range lines {
+		visible := lipgloss.Width(line)
+		pad := contentInner - visible
+		if pad < 0 {
+			pad = 0
+		}
+		body.WriteString(leftWall)
+		body.WriteString(line)
+		body.WriteString(strings.Repeat(" ", pad))
+		body.WriteString(rightWall)
+		body.WriteString("\n")
+	}
+
+	bottom := borderStyle.Render("└" + strings.Repeat("─", innerWidth) + "┘")
+
+	return top + "\n" + body.String() + bottom + "\n"
 }
 
 // compactBox produces a border-free alternative for narrow terminals.

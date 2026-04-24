@@ -33,11 +33,19 @@ dbagent stats --format html > report.html    # shareable HTML
 dbagent stats --format json                  # structured for CI/scripts
 dbagent stats --top 20                       # more rows per section
 dbagent stats --since 60                     # last 60 minutes of stats
-dbagent stats --exclude '(?i)pg_catalog'     # skip maintenance queries
+dbagent stats --exclude '(?i)pg_catalog'     # additional user-regex skips
+dbagent stats --include-system               # keep SET / SHOW / VACUUM etc.
 dbagent stats --no-color                     # force plain text
 ```
 
 `NO_COLOR=1` and non-TTY stdout both strip ANSI automatically.
+
+By default, `stats` hides noise queries — pg_stat_statements probes,
+`pg_catalog.` scans, transaction-control statements (BEGIN / COMMIT /
+ROLLBACK / SET / SHOW), and maintenance commands (ANALYZE / VACUUM /
+REINDEX / CHECKPOINT / CLUSTER). Pass `--include-system` if you
+actually want to see DBA activity. The same filter applies to
+`dbagent top --include-system`.
 
 ## Interpreting the output
 

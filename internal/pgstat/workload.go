@@ -45,6 +45,11 @@ type WorkloadMeta struct {
 // mean no filter.
 type WorkloadOptions struct {
 	SinceMinutes int
+	// IncludeSystem disables the default noise filter (pg_catalog
+	// scans, transaction-control, maintenance commands, dbagent's
+	// own probes). Off by default so `dbagent stats` shows user
+	// workload.
+	IncludeSystem bool
 }
 
 // FetchWorkload pulls the full pg_stat_statements snapshot plus the
@@ -120,10 +125,7 @@ func workloadSQL(opts WorkloadOptions) string {
 	// Note: pg_stat_statements doesn't actually carry a "last_seen"
 	// timestamp, so SinceMinutes is a no-op at the SQL level. We
 	// keep the option wired so callers have a single place to grow
-	// the filter once PostgreSQL exposes one. For now it's present
-	// but unused; buildTopQuery-style gate-keeping happens in stats
-	// package (via FilterRecent option in a later stage).
-	_ = opts
+	// the filter once PostgreSQL exposes one.
 	return `
 SELECT
     queryid,
@@ -137,8 +139,7 @@ SELECT
     shared_blks_dirtied,
     shared_blks_written
 FROM pg_stat_statements
-WHERE query NOT ILIKE '%%pg_stat_statements%%'
-  AND query NOT ILIKE '%%pg_extension%%'
+WHERE TRUE` + systemQueryFilterSQL(opts.IncludeSystem) + `
 ORDER BY total_exec_time DESC`
 }
 
