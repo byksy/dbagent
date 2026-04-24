@@ -63,6 +63,64 @@ func TestExclusiveTime_NeverExecuted_ReturnsZero(t *testing.T) {
 	}
 }
 
+// Parallel regression: a scan under Gather reports Actual Total Time
+// as a per-worker figure and Loops as workers_launched + leader. The
+// old formula multiplied, producing > 100% of plan time. Wall-clock
+// contribution is just ActualTotalTime because workers run
+// concurrently.
+func TestInclusiveTime_ParallelChild_NoLoopMultiplier(t *testing.T) {
+	scan := &Node{
+		NodeType:          NodeTypeSeqScan,
+		ActualTotalTimeMs: 35.1,
+		Loops:             3,
+	}
+	gather := &Node{
+		NodeType:          NodeTypeGather,
+		ActualTotalTimeMs: 15.3,
+		Loops:             1,
+		Children:          []*Node{scan},
+	}
+	scan.Parent = gather
+
+	if got := scan.InclusiveTimeMs(); !closeEnough(got, 35.1) {
+		t.Errorf("parallel scan inclusive = %v, want 35.1 (Loops must not multiply)", got)
+	}
+	if got := scan.ExclusiveTimeMs(); !closeEnough(got, 35.1) {
+		t.Errorf("parallel scan exclusive = %v, want 35.1", got)
+	}
+	// Gather itself is not a parallel child — its loop count still
+	// multiplies (trivially by 1 here). We deliberately use numbers
+	// that match the original bug-report fixture (Gather=15.3ms,
+	// scan=35.1ms) so the pre-fix behavior (scan showing 105.3ms
+	// and crossing 100% of plan time) is exactly what this test
+	// would have detected. In a real plan Gather would be ≥ child
+	// wall-clock; TestInclusiveTime_SerialLoopsStillMultiply covers
+	// that arithmetic path separately.
+	if got := gather.InclusiveTimeMs(); !closeEnough(got, 15.3) {
+		t.Errorf("gather inclusive = %v, want 15.3", got)
+	}
+}
+
+// Nested-loop regression: a plain scan with Loops=1000 still
+// multiplies by loops, because those loops ran serially.
+func TestInclusiveTime_SerialLoopsStillMultiply(t *testing.T) {
+	leaf := &Node{
+		NodeType:          NodeTypeIndexScan,
+		ActualTotalTimeMs: 0.1,
+		Loops:             1000,
+	}
+	root := &Node{
+		NodeType:          NodeTypeNestedLoop,
+		ActualTotalTimeMs: 150,
+		Loops:             1,
+		Children:          []*Node{leaf},
+	}
+	leaf.Parent = root
+	if got := leaf.InclusiveTimeMs(); !closeEnough(got, 100) {
+		t.Errorf("serial leaf inclusive = %v, want 100 (0.1 × 1000)", got)
+	}
+}
+
 func TestMisestimateFactor(t *testing.T) {
 	tests := []struct {
 		name   string

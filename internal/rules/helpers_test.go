@@ -27,6 +27,14 @@ func TestExtractFilterColumns(t *testing.T) {
 		{"(lower_col = 1)", []string{"lower_col"}},
 		{"(upper_case_flag = true)", []string{"upper_case_flag"}},
 		{"(trim_ws_enabled = false)", []string{"trim_ws_enabled"}},
+		// Compound-filter coverage: AND/OR chains, dedupe on repeated
+		// references, and nested conjunctions from Stage 4.5 polish.
+		{"((a = 1) AND (b = 2))", []string{"a", "b"}},
+		{"((a = 1) AND (b = 2) AND (c = 3))", []string{"a", "b", "c"}},
+		{"((a >= 1) AND (a <= 10))", []string{"a"}},
+		{"((a = 1) OR (b = 2))", []string{"a", "b"}},
+		{"(((a = 1) AND (b = 2)) OR (c = 3))", []string{"a", "b", "c"}},
+		{"((customer_id >= 1) AND (customer_id <= 200) AND (status = 'shipped'::text))", []string{"customer_id", "status"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.filter, func(t *testing.T) {

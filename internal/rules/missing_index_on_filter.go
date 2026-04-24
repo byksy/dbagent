@@ -8,12 +8,15 @@ import (
 	"github.com/byksy/dbagent/internal/schema"
 )
 
-// Volume thresholds. The 5× factor means "the filter threw away more
-// than 80% of what was scanned", keeping the rule from firing on
-// well-estimated predicates. The loops*removed gate suppresses the
+// Volume thresholds. The 4× factor means the filter must have
+// removed at least four times the rows it kept — equivalently, at
+// least 80% of what was scanned was discarded. The earlier 5× value
+// drifted the gate to 83.33% and made queries that hit the 80%
+// threshold exactly silently escape the rule; 4× puts the arithmetic
+// in line with the comment. The loops*removed gate suppresses the
 // rule on tiny tables where a seq scan is fine.
 const (
-	missingIndexRemovalFactor   = 5
+	missingIndexRemovalFactor   = 4
 	missingIndexMinWeightedRows = 100
 	missingIndexCriticalRows    = 10_000
 )
@@ -47,7 +50,11 @@ func (r *MissingIndexOnFilter) Check(ctx *RuleContext) []Finding {
 		// don't under-report.
 		removedPerLoop := n.RowsRemovedByFilter
 		keptPerLoop := n.ActualRows
-		if keptPerLoop*int64(missingIndexRemovalFactor) >= removedPerLoop {
+		// Fire when at least four times the kept rows were removed
+		// (>= 80% discarded). Strict > would silently let filters
+		// sitting at exactly 80% — a common round-number threshold
+		// in tests and real workloads — escape the rule.
+		if keptPerLoop*int64(missingIndexRemovalFactor) > removedPerLoop {
 			continue
 		}
 		loops := n.Loops
