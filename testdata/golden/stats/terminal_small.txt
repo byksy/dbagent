@@ -65,13 +65,16 @@
 
 ┌─ Recommendations ────────────────────────────────────────────────────────────┐
 │ ⚠  [WARNING]  Single query dominates DB time                                 │
-│              One query accounts for 47% of total database time. Consider deep analysis with 'dbagent analyze'. │
+│              One query accounts for 47% of total database time. Consider     │
+│              deep analysis with 'dbagent analyze'.                           │
 │              → dbagent analyze --queryid 1001  # (capture plan first)        │
 │                                                                              │
 │ ⚠  [WARNING]  Query with very low cache hit ratio                            │
-│              Query has cache hit ratio of 9.4%. Either it scans a large cold table or an index is missing. │
+│              Query has cache hit ratio of 9.4%. Either it scans a large cold │
+│              table or an index is missing.                                   │
 │                                                                              │
 │ ℹ  [INFO]  High-frequency, low-latency query                                 │
-│              Query executed 400,000 times with 0.00ms mean. Consider caching, batching, or connection pooling. │
+│              Query executed 400,000 times with 0.00ms mean. Consider         │
+│              caching, batching, or connection pooling.                       │
 └──────────────────────────────────────────────────────────────────────────────┘
 

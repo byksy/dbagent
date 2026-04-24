@@ -71,19 +71,28 @@ func Box(title, content string, width int) string {
 	leftWall := borderStyle.Render("│") + " "
 	rightWall := " " + borderStyle.Render("│")
 
+	// Wrap each input line to contentInner so callers that emit long
+	// prose (recommendations, action hints) don't push the right wall
+	// past the terminal edge. lipgloss.Width() is ANSI-aware, so
+	// styled spans are measured correctly; wrapping is done on word
+	// boundaries where possible.
 	var body strings.Builder
+	wrapStyle := lipgloss.NewStyle().Width(contentInner)
 	lines := strings.Split(strings.TrimRight(content, "\n"), "\n")
 	for _, line := range lines {
-		visible := lipgloss.Width(line)
-		pad := contentInner - visible
-		if pad < 0 {
-			pad = 0
+		wrapped := wrapStyle.Render(line)
+		for _, sub := range strings.Split(wrapped, "\n") {
+			visible := lipgloss.Width(sub)
+			pad := contentInner - visible
+			if pad < 0 {
+				pad = 0
+			}
+			body.WriteString(leftWall)
+			body.WriteString(sub)
+			body.WriteString(strings.Repeat(" ", pad))
+			body.WriteString(rightWall)
+			body.WriteString("\n")
 		}
-		body.WriteString(leftWall)
-		body.WriteString(line)
-		body.WriteString(strings.Repeat(" ", pad))
-		body.WriteString(rightWall)
-		body.WriteString("\n")
 	}
 
 	bottom := borderStyle.Render("└" + strings.Repeat("─", innerWidth) + "┘")

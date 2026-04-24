@@ -233,6 +233,15 @@ func writeStatsRecommendations(w io.Writer, ws *stats.WorkloadStats, width int) 
 	if len(ws.Recommendations) == 0 {
 		return
 	}
+	// Pre-wrap message / action text so continuation lines keep the
+	// 13-column hanging indent. Box()'s automatic wrap would reset
+	// continuation lines to column 0, losing the visual hierarchy.
+	const indent = "             " // 13 spaces: icon + padding + [LABEL] pad
+	wrapWidth := width - 4 - len(indent)
+	if wrapWidth < 20 {
+		wrapWidth = 20
+	}
+
 	var b strings.Builder
 	for i, rec := range ws.Recommendations {
 		if i > 0 {
@@ -241,14 +250,56 @@ func writeStatsRecommendations(w io.Writer, ws *stats.WorkloadStats, width int) 
 		icon := style.SeverityStyle(rec.Severity).Render(style.SeverityIcon(rec.Severity))
 		label := style.SeverityBadge(rec.Severity)
 		fmt.Fprintf(&b, "%s  %s  %s\n", icon, label, style.StyleBold.Render(rec.Title))
-		fmt.Fprintf(&b, "             %s\n", rec.Message)
+		for _, line := range wrapHanging(rec.Message, wrapWidth) {
+			fmt.Fprintf(&b, "%s%s\n", indent, line)
+		}
 		if rec.Action != "" {
-			fmt.Fprintf(&b, "             %s %s\n",
-				style.StyleMuted.Render("→"),
-				style.StyleMuted.Render(rec.Action))
+			prefix := style.StyleMuted.Render("→") + " "
+			actionLines := wrapHanging(rec.Action, wrapWidth-2)
+			for j, line := range actionLines {
+				if j == 0 {
+					fmt.Fprintf(&b, "%s%s%s\n", indent, prefix, style.StyleMuted.Render(line))
+				} else {
+					fmt.Fprintf(&b, "%s  %s\n", indent, style.StyleMuted.Render(line))
+				}
+			}
 		}
 	}
 	fmt.Fprint(w, style.Box("Recommendations", b.String(), width))
+}
+
+// wrapHanging breaks s at word boundaries so no line exceeds width
+// visible columns. Words longer than width are allowed to overflow
+// one line rather than splitting mid-word — legibility beats
+// precision on narrow terminals.
+func wrapHanging(s string, width int) []string {
+	if width <= 0 || len(s) <= width {
+		return []string{s}
+	}
+	words := strings.Fields(s)
+	if len(words) == 0 {
+		return []string{s}
+	}
+	var out []string
+	var cur strings.Builder
+	for _, word := range words {
+		if cur.Len() == 0 {
+			cur.WriteString(word)
+			continue
+		}
+		if cur.Len()+1+len(word) > width {
+			out = append(out, cur.String())
+			cur.Reset()
+			cur.WriteString(word)
+			continue
+		}
+		cur.WriteByte(' ')
+		cur.WriteString(word)
+	}
+	if cur.Len() > 0 {
+		out = append(out, cur.String())
+	}
+	return out
 }
 
 // truncateStatsText collapses whitespace and cuts to width runes.
