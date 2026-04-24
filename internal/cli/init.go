@@ -111,10 +111,17 @@ func runInit(cmd *cobra.Command, f *initFlags) error {
 		return newExitError(ExitInternal, errors.New("cannot resolve default config path"))
 	}
 
+	// Gate the guard on file existence, not successful parse. A
+	// corrupt or unreadable config still counts — refusing to clobber
+	// it without --force gives the operator a chance to inspect
+	// before losing whatever is on disk.
+	fileExists, _ := config.ConfigExists(path)
 	existing, _ := config.Load(path)
 	defaults := config.Default()
 	if existing != nil {
 		defaults = existing
+	}
+	if fileExists {
 		proceed, err := guardOverwrite(cmd, f, path)
 		if err != nil {
 			return err

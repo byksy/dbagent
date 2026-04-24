@@ -63,7 +63,9 @@ func runConfigShow(cmd *cobra.Command) error {
 	}
 
 	w := cmd.OutOrStdout()
-	w.Write(config.Marshal(cfg.Redacted()))
+	if _, err := w.Write(config.Marshal(cfg.Redacted())); err != nil {
+		return newExitError(ExitInternal, err)
+	}
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, style.StyleMuted.Render("# Config file: "+path))
 	return nil
@@ -185,7 +187,9 @@ func showConfigForReset(cmd *cobra.Command, path string) error {
 		fmt.Fprintln(w)
 		return nil
 	}
-	w.Write(config.Marshal(cfg.Redacted()))
+	if _, err := w.Write(config.Marshal(cfg.Redacted())); err != nil {
+		return newExitError(ExitInternal, err)
+	}
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, style.StyleMuted.Render("# Config file: "+path))
 	fmt.Fprintln(w)

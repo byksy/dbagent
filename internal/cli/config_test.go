@@ -144,9 +144,31 @@ func TestConfigReset_Force_DeletesFile(t *testing.T) {
 	}
 }
 
+// withNonTTYStdin swaps os.Stdin for the read end of a pipe so
+// isTerminal(os.Stdin) returns false deterministically, regardless
+// of whether the test runner has a TTY attached. Restored via
+// t.Cleanup.
+func withNonTTYStdin(t *testing.T) {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	orig := os.Stdin
+	os.Stdin = r
+	t.Cleanup(func() {
+		os.Stdin = orig
+		_ = r.Close()
+		_ = w.Close()
+	})
+}
+
 func TestConfigReset_NonInteractive_WithoutForce_Fails(t *testing.T) {
-	// go test's stdin is not a TTY, so this exercises the
-	// "refuse without --force" path directly.
+	// Guarantee non-TTY stdin even when `go test` is invoked from an
+	// interactive terminal — otherwise the test would drive the
+	// confirmation prompt path instead of the refusal path.
+	withNonTTYStdin(t)
+
 	path := newConfigTestFile(t)
 	flagConfigPath = path
 
@@ -184,6 +206,42 @@ func TestGuardOverwrite_NoPromptRefuses(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "--force") {
 		t.Errorf("error should mention --force as the fix, got %q", err.Error())
+	}
+}
+
+func TestInit_RefusesOverwriteOfCorruptConfigWithoutForce(t *testing.T) {
+	// Regression for the guard gap Copilot flagged: when Load() fails
+	// on an existing-but-unparseable file, the old code left
+	// existing=nil and skipped guardOverwrite, silently clobbering
+	// whatever was on disk. The fix bases the guard on ConfigExists.
+	withNonTTYStdin(t)
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "corrupt.yaml")
+	if err := os.WriteFile(path, []byte("@@@ not valid yaml @@@"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	flagConfigPath = path
+
+	cmd, _, _ := newCmdForTest(t, "")
+	err := runInit(cmd, &initFlags{noPrompt: true})
+	if err == nil {
+		t.Fatalf("expected refusal, got nil")
+	}
+	var ee *ExitError
+	if !errors.As(err, &ee) || ee.Code != ExitUsageError {
+		t.Errorf("expected ExitUsageError, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "--force") {
+		t.Errorf("error should mention --force as the fix, got %q", err.Error())
+	}
+	// And the corrupt bytes must still be on disk — no silent clobber.
+	b, readErr := os.ReadFile(path)
+	if readErr != nil {
+		t.Fatalf("config file vanished: %v", readErr)
+	}
+	if !strings.Contains(string(b), "not valid yaml") {
+		t.Errorf("corrupt config was overwritten; file is now: %s", b)
 	}
 }
 
