@@ -143,9 +143,11 @@ ORDER BY n.nspname, c.relname, a.attnum`
 }
 
 // fetchIndexes populates s.Indexes. Expression-index entries appear
-// with a NULL attname in the catalog; we drop those positions
-// rather than invent a synthetic name — Stage 4 rules don't need
-// expression-index coverage and would mis-suggest on one.
+// with a NULL attname in the catalog; we exclude any index that
+// contains such a position entirely. Keeping only the direct column
+// references would misrepresent a `(lower(email), created_at)`
+// index as `(created_at)`, which would let HasIndexOn claim
+// coverage the index doesn't actually provide.
 func fetchIndexes(ctx context.Context, tx pgx.Tx, s *Schema) error {
 	const q = `
 SELECT
@@ -196,12 +198,20 @@ ORDER BY n.nspname, i.relname`
 			return fmt.Errorf("schema: scan index: %w", err)
 		}
 		idx.Table = qualify(tableNS, tableName)
+		hasExpression := false
 		for _, c := range rawCols {
 			if c == nil {
-				// Expression-index entry: drop it.
-				continue
+				// Expression-index position. Mark and bail — we
+				// cannot represent this index faithfully with our
+				// column-based model, and rules that act on it
+				// would mis-suggest.
+				hasExpression = true
+				break
 			}
 			idx.Columns = append(idx.Columns, *c)
+		}
+		if hasExpression {
+			continue
 		}
 		s.Indexes[qualify(idx.Schema, idx.Name)] = &idx
 	}

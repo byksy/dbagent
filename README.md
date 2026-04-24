@@ -248,7 +248,6 @@ go1.22.x linux/amd64
 2. ✓ Stage 2 — EXPLAIN plan parser, `analyze` command (offline tree/table/JSON rendering + summary)
 3. ✓ Stage 3 — Rule engine: first eight diagnostic and prescriptive findings
 4. ✓ **Stage 4 — Schema introspection, `schema` + `schema export` commands, schema-aware rules, `fk_missing_index` finding** *(current — see [`docs/rules.md`](docs/rules.md))*
-4. Stage 4 — Schema introspection (avoid suggesting indexes that already exist)
 5. Stage 5 — Extended rule set (15-20 rules)
 6. Stage 6 — Output formats (JSON, Markdown) and shareable reports
 7. Stage 7 — Homebrew, precompiled binaries (GoReleaser + GitHub Actions)

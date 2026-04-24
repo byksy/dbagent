@@ -74,6 +74,17 @@ func TestFindIndexPrefixing(t *testing.T) {
 		{"different ordering returns nil", buildSchema(&Index{Name: "i_ba", Columns: []string{"b", "a"}}), []string{"a", "b", "c"}, ""},
 		{"diverging prefix returns nil", buildSchema(&Index{Name: "i_ad", Columns: []string{"a", "d"}}), []string{"a", "b", "c"}, ""},
 		{"single-col request skipped (no meaningful extension)", buildSchema(&Index{Name: "i_a", Columns: []string{"a"}}), []string{"a"}, ""},
+		// Safety: primary-key and unique indexes must never be
+		// proposed for DROP+CREATE rewrite — doing so would drop
+		// the constraint.
+		{"primary key never extended", buildSchema(&Index{Name: "orders_pkey", Columns: []string{"a"}, IsPrimary: true, IsUnique: true}), []string{"a", "b"}, ""},
+		{"plain unique index never extended", buildSchema(&Index{Name: "u_a", Columns: []string{"a"}, IsUnique: true}), []string{"a", "b"}, ""},
+		// Deterministic tie-break: when two candidates tie on prefix
+		// length, ascending FQN wins.
+		{"tie broken by FQN", buildSchema(
+			&Index{Name: "z_idx", Columns: []string{"a"}},
+			&Index{Name: "a_idx", Columns: []string{"a"}},
+		), []string{"a", "b"}, "a_idx"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

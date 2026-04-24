@@ -12,7 +12,7 @@
 #
 # Both captures are deterministic because the underlying seed scripts
 # use `setseed(0.42)` and fixed timestamps. The only drift between
-# runs is Meta.ExportedAt and the last_analyze / size_bytes figures.
+# runs is Meta.ExportedAt and the last_analyzed / size_bytes figures.
 
 set -euo pipefail
 

@@ -52,12 +52,19 @@ func (r *FKMissingIndex) Check(ctx *RuleContext) []Finding {
 // node's ID for each base relation it encounters. Keys are fully
 // qualified names ("schema.relation"); values are node IDs suitable
 // for attaching findings.
+//
+// NeverExecuted scans are skipped: anchoring an FK-missing warning
+// to a branch the plan never actually entered would mislead the
+// operator about which FK this query hit.
 func collectTouchedTables(p *plan.Plan) map[string]int {
 	out := map[string]int{}
 	if p == nil || p.Root == nil {
 		return out
 	}
 	p.Root.Walk(func(n *plan.Node) {
+		if n.NeverExecuted {
+			return
+		}
 		if n.RelationName == "" {
 			return
 		}

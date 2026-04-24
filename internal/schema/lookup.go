@@ -1,6 +1,9 @@
 package schema
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
 // HasIndexOn reports whether tableFQN has a btree index whose column
 // list starts with cols. A longer index such as (a, b, c) covers
@@ -39,7 +42,10 @@ func (s *Schema) HasIndexOn(tableFQN string, cols []string) bool {
 // FindIndexPrefixing returns an existing index on tableFQN whose
 // column list is a strict prefix of cols — in other words, an index
 // that partially covers the request and could be extended to cover
-// the rest.
+// the rest. The return value is a candidate for a DROP+CREATE
+// rewrite, so primary-key and unique indexes are deliberately
+// excluded: dropping them would remove the underlying constraint,
+// which this helper can't justify without knowing more than it does.
 //
 // Examples with request [a, b, c]:
 //
@@ -48,11 +54,11 @@ func (s *Schema) HasIndexOn(tableFQN string, cols []string) bool {
 //	idx cols: [a, b, c] → NOT returned (already an exact match; use HasIndexOn)
 //	idx cols: [b, a]    → NOT returned (ordering differs)
 //	idx cols: [a, b, d] → NOT returned (diverges at position 2)
+//	idx cols: [a]  pkey → NOT returned (would require dropping the pkey)
 //
-// When multiple candidates exist, the longest prefix wins. Returns
-// nil when no prefix index exists or when cols is already fully
-// covered by some index (callers should check HasIndexOn for that
-// case).
+// When multiple candidates exist, the longest prefix wins; ties are
+// broken by ascending FQN so the result is deterministic across map
+// iteration orders.
 func (s *Schema) FindIndexPrefixing(tableFQN string, cols []string) *Index {
 	if s == nil || len(cols) < 2 {
 		return nil
@@ -66,13 +72,23 @@ func (s *Schema) FindIndexPrefixing(tableFQN string, cols []string) *Index {
 		if !indexMatches(idx, normTable) {
 			continue
 		}
+		if idx.IsPrimary || idx.IsUnique {
+			continue
+		}
 		if len(idx.Columns) == 0 || len(idx.Columns) >= len(cols) {
 			continue
 		}
 		if !columnsEqual(idx.Columns, cols[:len(idx.Columns)]) {
 			continue
 		}
-		if best == nil || len(idx.Columns) > len(best.Columns) {
+		switch {
+		case best == nil:
+			best = idx
+		case len(idx.Columns) > len(best.Columns):
+			best = idx
+		case len(idx.Columns) == len(best.Columns) && idx.FQN() < best.FQN():
+			// Deterministic tie-break: lexicographically smallest
+			// FQN wins when prefix lengths match.
 			best = idx
 		}
 	}
@@ -144,7 +160,9 @@ type FKWithoutIndex struct {
 
 // FKColumnsWithoutIndex returns every foreign key whose local columns
 // are not covered by a leading-column btree index. The list is
-// ordered by (table FQN, fk name) for deterministic output.
+// sorted by (table FQN, fk name) for deterministic output regardless
+// of how the schema was constructed (live fetch, JSON load, hand-
+// built test).
 //
 // Coverage check: we look for an index whose leading columns equal
 // the FK's column list (ordering sensitive). An index on (a, b, c)
@@ -163,6 +181,14 @@ func (s *Schema) FKColumnsWithoutIndex() []FKWithoutIndex {
 		}
 		out = append(out, FKWithoutIndex{FK: fk, Missing: fk.Columns})
 	}
+	sort.SliceStable(out, func(i, j int) bool {
+		li := qualify(out[i].FK.Schema, out[i].FK.Table)
+		lj := qualify(out[j].FK.Schema, out[j].FK.Table)
+		if li != lj {
+			return li < lj
+		}
+		return out[i].FK.Name < out[j].FK.Name
+	})
 	return out
 }
 
