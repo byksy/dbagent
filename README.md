@@ -293,9 +293,10 @@ dbagent init --force --no-prompt \
   --database app --password-env DB_PASS --sslmode require
 ```
 
-Without `--force`, `init` refuses to clobber an existing config when
-stdin is not a terminal, so automation can't silently replace a good
-config.
+Without `--force`, `init` refuses to clobber an existing config
+whenever it is running non-interactively — stdin is not a terminal
+or `--no-prompt` is set — so automation can't silently replace a
+good config. Interactive runs prompt before overwriting.
 
 ### `dbagent version`
 

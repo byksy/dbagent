@@ -138,10 +138,12 @@ func applyDefaults(v *viper.Viper) {
 	v.SetDefault("log.level", d.Log.Level)
 }
 
-// ConfigExists reports whether a file exists at path. A path that
-// resolves to a directory or an otherwise-unreadable entry returns
-// (false, err) — callers that only care about "is there a readable
-// config?" should treat any error as "no".
+// ConfigExists reports whether a regular file exists at path. It is
+// a thin wrapper around os.Stat with two differences: an empty path
+// is rejected up front, and a directory at the given path returns an
+// error so callers can print a clearer message than "file not
+// found". No readability / permission check is performed — that is
+// deferred to the caller's subsequent Load.
 func ConfigExists(path string) (bool, error) {
 	if path == "" {
 		return false, errors.New("config: ConfigExists called with empty path")
