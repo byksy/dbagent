@@ -32,6 +32,14 @@ CREATE TABLE IF NOT EXISTS orders (
     amount numeric
 );
 CREATE INDEX IF NOT EXISTS customers_region_idx ON customers(region);
+-- Two intentional duplicate indexes on orders(status) so Stage 5's
+-- duplicate_index and unused_index_hint rules have material to fire
+-- on when they run against this baseline schema. Neither index is
+-- exercised by the capture queries below, so pg_stat_user_indexes
+-- records zero scans for them — that's what unused_index_hint keys
+-- on.
+CREATE INDEX IF NOT EXISTS orders_status_idx_a ON orders(status);
+CREATE INDEX IF NOT EXISTS orders_status_idx_b ON orders(status);
 
 TRUNCATE customers, orders CASCADE;
 

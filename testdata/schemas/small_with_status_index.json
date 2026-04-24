@@ -1,9 +1,9 @@
 {
   "meta": {
-    "exported_at": "2026-04-24T09:51:22.816947Z",
+    "exported_at": "2026-04-24T10:47:05.226987Z",
     "database": "postgres",
     "server_version": "17.9 (Debian 17.9-1.pgdg13+1)",
-    "dbagent_version": "v0.4.1-1-g3bd9fe5-dirty"
+    "dbagent_version": "v0.4.1-2-g14e883d-dirty"
   },
   "tables": {
     "public.customers": {
@@ -31,7 +31,7 @@
       ],
       "row_estimate": 5000,
       "size_bytes": 458752,
-      "last_analyzed": "2026-04-24T09:51:22.347341Z",
+      "last_analyzed": "2026-04-24T10:47:04.719246Z",
       "last_vacuumed": "0001-01-01T00:00:00Z"
     },
     "public.orders": {
@@ -70,8 +70,8 @@
         }
       ],
       "row_estimate": 50000,
-      "size_bytes": 4186112,
-      "last_analyzed": "2026-04-24T09:51:22.343412Z",
+      "size_bytes": 4874240,
+      "last_analyzed": "2026-04-24T10:47:04.740806Z",
       "last_vacuumed": "0001-01-01T00:00:00Z"
     }
   },
@@ -121,6 +121,35 @@
       "definition": "CREATE UNIQUE INDEX orders_pkey ON public.orders USING btree (id)",
       "scans": 1
     },
+    "public.orders_status_idx_a": {
+      "schema": "public",
+      "name": "orders_status_idx_a",
+      "table": "public.orders",
+      "columns": [
+        "status"
+      ],
+      "is_unique": false,
+      "is_primary": false,
+      "is_partial": false,
+      "method": "btree",
+      "size_bytes": 344064,
+      "definition": "CREATE INDEX orders_status_idx_a ON public.orders USING btree (status)"
+    },
+    "public.orders_status_idx_b": {
+      "schema": "public",
+      "name": "orders_status_idx_b",
+      "table": "public.orders",
+      "columns": [
+        "status"
+      ],
+      "is_unique": false,
+      "is_primary": false,
+      "is_partial": false,
+      "method": "btree",
+      "size_bytes": 344064,
+      "definition": "CREATE INDEX orders_status_idx_b ON public.orders USING btree (status)",
+      "scans": 2
+    },
     "public.orders_status_idx": {
       "schema": "public",
       "name": "orders_status_idx",
@@ -134,7 +163,7 @@
       "method": "btree",
       "size_bytes": 131072,
       "definition": "CREATE INDEX orders_status_idx ON public.orders USING btree (status)",
-      "scans": 0
+      "scans": 12
     }
   },
   "foreign_keys": [

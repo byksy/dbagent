@@ -10,8 +10,8 @@
       "Total Cost": 1142.71,
       "Plan Rows": 10,
       "Plan Width": 208,
-      "Actual Startup Time": 0.025,
-      "Actual Total Time": 0.105,
+      "Actual Startup Time": 0.029,
+      "Actual Total Time": 0.114,
       "Actual Rows": 10,
       "Actual Loops": 1,
       "Recheck Cond": "(id < 1000)",
@@ -39,8 +39,8 @@
           "Total Cost": 1104.34,
           "Plan Rows": 10,
           "Plan Width": 0,
-          "Actual Startup Time": 0.019,
-          "Actual Total Time": 0.019,
+          "Actual Startup Time": 0.021,
+          "Actual Total Time": 0.021,
           "Actual Rows": 999,
           "Actual Loops": 1,
           "Index Cond": "(id < 1000)",
@@ -69,9 +69,9 @@
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.454,
+    "Planning Time": 0.484,
     "Triggers": [
     ],
-    "Execution Time": 0.121
+    "Execution Time": 0.131
   }
 ]

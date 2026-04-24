@@ -1,26 +1,23 @@
-Plan (total: 3.4ms, planning: 0.3ms, execution: 3.1ms)
+Plan (total: 2.6ms, planning: 0.3ms, execution: 2.2ms)
 
   #  time   excl%  rows    misest   loops  node
   1  0.0ms  0.1%   42      1.0×     1      Limit
-  2  0.2ms  7.0%   42      98.1× ↑  1       └ Sort
-  3  0.7ms  21.2%  4,160   1.0×     1        └ Hash Join
-  4  1.9ms  56.2%  12,500  1.0×     1         └ Seq Scan on orders o
-  5  0.1ms  2.7%   1,666   1.0×     1         └ Hash
-  6  0.1ms  3.1%   1,666   1.0×     1          └ Bitmap Heap Scan on customers c
-  7  0.0ms  0.7%   1,666   1.0×     1           └ Bitmap Index Scan
+  2  0.3ms  9.8%   42      99.7× ↑  1       └ Sort
+  3  0.8ms  30.3%  4,160   1.0×     1        └ Hash Join
+  4  0.8ms  29.4%  12,500  1.0×     1         └ Bitmap Heap Scan on orders o
+  5  0.1ms  5.4%   12,500  1.0×     1          └ Bitmap Index Scan
+  6  0.1ms  4.8%   1,666   1.0×     1         └ Hash
+  7  0.1ms  3.9%   1,666   1.0×     1          └ Bitmap Heap Scan on customers c
+  8  0.0ms  1.1%   1,666   1.0×     1           └ Bitmap Index Scan
 
 Summary
-  Slowest node (exclusive):  [4] Seq Scan on orders o — 1.9ms (56% of total)
-  Biggest row misestimate:   [2] Sort — planned 4,121, actual 42 (98.1× over)
+  Slowest node (exclusive):  [3] Hash Join — 0.8ms (30% of total)
+  Biggest row misestimate:   [2] Sort — planned 4,188, actual 42 (99.7× over)
 
 Findings
-  INFO      [4] Seq Scan on orders o
-            └─ filter_removal_ratio
-               75% of rows read are discarded by filter (37500 rows removed, 12500 kept).
-
-  INFO      [4] Seq Scan on orders o
+  WARNING   [4] Bitmap Heap Scan on orders o
             └─ table_bloat
-               Scan reads 368 blocks (2.9 MB) for 50000 rows — approximately 60 bytes per row. This may indicate table bloat or dead tuples.
+               Scan reads 379 blocks (3.0 MB) for 12500 rows — approximately 248 bytes per row. This may indicate table bloat or dead tuples.
                Suggested: VACUUM (ANALYZE) orders;
 
-2 findings (2 info)
+1 findings (1 warning)

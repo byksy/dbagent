@@ -6,12 +6,12 @@
       "Partial Mode": "Simple",
       "Parallel Aware": false,
       "Async Capable": false,
-      "Startup Cost": 634.62,
-      "Total Cost": 634.63,
+      "Startup Cost": 858.66,
+      "Total Cost": 858.67,
       "Plan Rows": 1,
       "Plan Width": 8,
-      "Actual Startup Time": 12.188,
-      "Actual Total Time": 12.188,
+      "Actual Startup Time": 12.757,
+      "Actual Total Time": 12.758,
       "Actual Rows": 1,
       "Actual Loops": 1,
       "Shared Hit Blocks": 4412,
@@ -35,11 +35,11 @@
           "Relation Name": "rule_orders",
           "Alias": "rule_orders",
           "Startup Cost": 0.42,
-          "Total Cost": 621.52,
-          "Plan Rows": 5240,
+          "Total Cost": 843.11,
+          "Plan Rows": 6220,
           "Plan Width": 0,
-          "Actual Startup Time": 0.019,
-          "Actual Total Time": 9.557,
+          "Actual Startup Time": 0.029,
+          "Actual Total Time": 10.083,
           "Actual Rows": 105000,
           "Actual Loops": 1,
           "Index Cond": "(status = 'shipped'::text)",
@@ -70,9 +70,9 @@
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.195,
+    "Planning Time": 0.203,
     "Triggers": [
     ],
-    "Execution Time": 12.211
+    "Execution Time": 12.782
   }
 ]

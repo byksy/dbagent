@@ -11,7 +11,7 @@
       "Plan Rows": 1,
       "Plan Width": 8,
       "Actual Startup Time": 0.014,
-      "Actual Total Time": 0.014,
+      "Actual Total Time": 0.015,
       "Actual Rows": 1,
       "Actual Loops": 1,
       "Shared Hit Blocks": 4,
@@ -38,7 +38,7 @@
           "Total Cost": 8.44,
           "Plan Rows": 1,
           "Plan Width": 0,
-          "Actual Startup Time": 0.011,
+          "Actual Startup Time": 0.012,
           "Actual Total Time": 0.012,
           "Actual Rows": 1,
           "Actual Loops": 1,
@@ -70,7 +70,7 @@
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.146,
+    "Planning Time": 0.148,
     "Triggers": [
     ],
     "Execution Time": 0.037

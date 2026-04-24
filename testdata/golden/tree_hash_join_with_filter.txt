@@ -1,36 +1,34 @@
-Plan (total: 3.4ms, planning: 0.3ms, execution: 3.1ms)
+Plan (total: 2.6ms, planning: 0.3ms, execution: 2.2ms)
 
-[1] Limit  rows=42  time=3.1ms  loops=1
-    buffers: shared hit=402 read=0
-└─ [2] Sort  rows=42  time=3.1ms  loops=1
+[1] Limit  rows=42  time=2.2ms  loops=1
+    buffers: shared hit=413 read=0
+└─ [2] Sort  rows=42  time=2.2ms  loops=1
     sort_key=o.created_at DESC  method=top-N heapsort  memory=30kB
-    buffers: shared hit=402 read=0
-    └─ [3] Hash Join  rows=4,160  time=2.9ms  loops=1
+    buffers: shared hit=413 read=0
+    └─ [3] Hash Join  rows=4,160  time=1.9ms  loops=1
         hash_cond=(o.customer_id = c.id)
-        buffers: shared hit=399 read=0
-        ├─ [4] Seq Scan on orders o  rows=12,500  time=1.9ms  loops=1  ℹ
-        │   filter=(status = 'shipped'::text)  filter_removed=37,500
-        │   buffers: shared hit=368 read=0
-        └─ [5] Hash  rows=1,666  time=0.2ms  loops=1
+        buffers: shared hit=410 read=0
+        ├─ [4] Bitmap Heap Scan on orders o  rows=12,500  time=0.9ms  loops=1  ⚠
+        │   buffers: shared hit=379 read=0
+        │   └─ [5] Bitmap Index Scan  rows=12,500  time=0.1ms  loops=1
+        │       index=orders_status_idx_b  index_cond=(status = 'shipped'::text)
+        │       buffers: shared hit=11 read=0
+        └─ [6] Hash  rows=1,666  time=0.3ms  loops=1
             buffers: shared hit=31 read=0
-            └─ [6] Bitmap Heap Scan on customers c  rows=1,666  time=0.1ms  loops=1
+            └─ [7] Bitmap Heap Scan on customers c  rows=1,666  time=0.1ms  loops=1
                 buffers: shared hit=31 read=0
-                └─ [7] Bitmap Index Scan  rows=1,666  time=0.0ms  loops=1
+                └─ [8] Bitmap Index Scan  rows=1,666  time=0.0ms  loops=1
                     index=customers_region_idx  index_cond=(region = 'EU'::text)
                     buffers: shared hit=3 read=0
 
 Summary
-  Slowest node (exclusive):  [4] Seq Scan on orders o — 1.9ms (56% of total)
-  Biggest row misestimate:   [2] Sort — planned 4,121, actual 42 (98.1× over)
+  Slowest node (exclusive):  [3] Hash Join — 0.8ms (30% of total)
+  Biggest row misestimate:   [2] Sort — planned 4,188, actual 42 (99.7× over)
 
 Findings
-  INFO      [4] Seq Scan on orders o
-            └─ filter_removal_ratio
-               75% of rows read are discarded by filter (37500 rows removed, 12500 kept).
-
-  INFO      [4] Seq Scan on orders o
+  WARNING   [4] Bitmap Heap Scan on orders o
             └─ table_bloat
-               Scan reads 368 blocks (2.9 MB) for 50000 rows — approximately 60 bytes per row. This may indicate table bloat or dead tuples.
+               Scan reads 379 blocks (3.0 MB) for 12500 rows — approximately 248 bytes per row. This may indicate table bloat or dead tuples.
                Suggested: VACUUM (ANALYZE) orders;
 
-2 findings (2 info)
+1 findings (1 warning)

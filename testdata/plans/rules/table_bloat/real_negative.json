@@ -9,11 +9,11 @@
       "Relation Name": "rule_orders",
       "Alias": "rule_orders",
       "Startup Cost": 0.42,
-      "Total Cost": 10.81,
-      "Plan Rows": 119,
+      "Total Cost": 10.91,
+      "Plan Rows": 124,
       "Plan Width": 30,
       "Actual Startup Time": 0.003,
-      "Actual Total Time": 0.007,
+      "Actual Total Time": 0.008,
       "Actual Rows": 100,
       "Actual Loops": 1,
       "Index Cond": "((id >= 1) AND (id <= 100))",
@@ -41,9 +41,9 @@
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.187,
+    "Planning Time": 0.236,
     "Triggers": [
     ],
-    "Execution Time": 0.028
+    "Execution Time": 0.030
   }
 ]

@@ -11,7 +11,7 @@
       "Plan Rows": 599946,
       "Plan Width": 30,
       "Actual Startup Time": 0.004,
-      "Actual Total Time": 20.644,
+      "Actual Total Time": 38.375,
       "Actual Rows": 600000,
       "Actual Loops": 1,
       "Shared Hit Blocks": 4412,
@@ -37,9 +37,9 @@
       "Temp Read Blocks": 0,
       "Temp Written Blocks": 0
     },
-    "Planning Time": 0.113,
+    "Planning Time": 0.128,
     "Triggers": [
     ],
-    "Execution Time": 32.059
+    "Execution Time": 55.885
   }
 ]
