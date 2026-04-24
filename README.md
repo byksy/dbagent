@@ -18,7 +18,7 @@ The tool is being built in stages. Upcoming work includes an expanded rule set, 
 **Users:**
 
 ```bash
-go install github.com/byksy/dbagent/cmd/dbagent@v0.5.0
+go install github.com/byksy/dbagent/cmd/dbagent@v0.5.5
 ```
 
 (Until the module is mature, pin to a specific tag. `@latest` will resolve
@@ -269,7 +269,7 @@ interpretation guide.
 Print version and runtime info:
 
 ```
-dbagent v0.5.0
+dbagent v0.5.5
 go1.22.x linux/amd64
 ```
 
