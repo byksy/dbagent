@@ -1,0 +1,34 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Verify module
+        run: go mod verify
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build -v ./...
+
+      # Unit tests only. Integration tests live behind the `integration`
+      # build tag and depend on a docker-compose Postgres seeded with
+      # rule fixtures (see `make rule-fixtures`); reproducing that in
+      # CI is a follow-up. The release workflow likewise runs unit
+      # tests only — both gates are unit-tight.
+      - name: Unit tests
+        run: go test -race -v ./...

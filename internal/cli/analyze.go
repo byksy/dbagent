@@ -54,7 +54,7 @@ Examples:
 		},
 	}
 	cmd.Flags().StringVar(&f.planFile, "plan-file", "", "path to EXPLAIN JSON file; empty means read from stdin")
-	cmd.Flags().StringVar(&f.format, "format", "tree", "output format: tree|table|json")
+	cmd.Flags().StringVar(&f.format, "format", "tree", "output format: tree|table|json|markdown")
 	cmd.Flags().StringVar(&f.failOn, "fail-on", "", "exit non-zero if any finding reaches this severity: info|warning|critical")
 	cmd.Flags().BoolVar(&f.explain, "explain", false, "include detailed explanations (what happened, why it matters, what to do) with each finding")
 
@@ -123,13 +123,14 @@ func runAnalyze(cmd *cobra.Command, f *analyzeFlags) error {
 	if err != nil {
 		return err
 	}
-	// JSON mode must emit valid JSON only; the banner goes to stderr
-	// there so shell pipelines like `dbagent analyze ... | jq` keep
-	// working. Tree and table modes render the banner inline at the
-	// top of stdout because that's where operators see it.
+	// JSON and Markdown modes must emit clean machine-readable
+	// content on stdout — the banner goes to stderr so pipelines
+	// like `... | jq` and `... > report.md` keep working. Tree and
+	// table modes render the banner inline at the top of stdout
+	// because that's where operators see it.
 	if banner != "" {
 		switch f.format {
-		case "json":
+		case "json", "markdown":
 			fmt.Fprintln(stderr, banner)
 		default:
 			fmt.Fprintln(w, banner)
@@ -153,8 +154,12 @@ func runAnalyze(cmd *cobra.Command, f *analyzeFlags) error {
 		if err := renderJSON(w, p, summary, findings, f.explain); err != nil {
 			return err
 		}
+	case "markdown":
+		if err := renderMarkdown(w, p, summary, findings); err != nil {
+			return err
+		}
 	default:
-		return newExitError(ExitUsageError, fmt.Errorf("invalid --format %q, expected tree|table|json", f.format))
+		return newExitError(ExitUsageError, fmt.Errorf("invalid --format %q, expected tree|table|json|markdown", f.format))
 	}
 
 	if failOnSet {

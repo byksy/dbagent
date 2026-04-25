@@ -1,0 +1,117 @@
+version: 2
+
+project_name: dbagent
+
+before:
+  hooks:
+    - go mod tidy
+    - go vet ./...
+
+builds:
+  - id: dbagent
+    main: ./cmd/dbagent
+    binary: dbagent
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X github.com/byksy/dbagent/internal/cli.Version={{.Version}}
+
+archives:
+  - id: default
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "arm64" }}arm64
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+      - docs/*
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "Merge pull request"
+      - "Merge branch"
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))?!?:.+$'
+      order: 0
+    - title: Bug fixes
+      regexp: '^.*?fix(\(.+\))?!?:.+$'
+      order: 1
+    - title: Other
+      order: 999
+
+brews:
+  - name: dbagent
+    repository:
+      owner: byksy
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/byksy/dbagent"
+    description: "PostgreSQL query analyzer CLI — parses EXPLAIN output and suggests optimizations."
+    license: "MIT"
+    test: |
+      system "#{bin}/dbagent", "version"
+    install: |
+      bin.install "dbagent"
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    commit_msg_template: "Brew formula update for {{ .ProjectName }} version {{ .Tag }}"
+
+release:
+  github:
+    owner: byksy
+    name: dbagent
+  draft: false
+  prerelease: auto
+  name_template: "{{ .ProjectName }} v{{ .Version }}"
+  header: |
+    ## dbagent {{ .Tag }}
+
+    See [CHANGELOG.md](https://github.com/byksy/dbagent/blob/main/CHANGELOG.md) for full history.
+  footer: |
+    ---
+
+    **Installation**
+
+    ```bash
+    # Homebrew (macOS / Linux)
+    brew install byksy/tap/dbagent
+
+    # Go install
+    go install github.com/byksy/dbagent/cmd/dbagent@{{ .Tag }}
+
+    # Or download a binary from the Assets section below
+    ```

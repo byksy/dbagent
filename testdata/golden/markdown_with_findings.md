@@ -1,0 +1,168 @@
+# Query Analysis
+
+**Total time:** 125.3ms (planning: 0.3ms, execution: 125.0ms)
+**Nodes:** 1
+
+## Plan
+
+```
+[1] Seq Scan on rule_orders  rows=5,000  time=120.0ms  loops=1  ℹ ✗
+    filter=(status = 'shipped'::text)  filter_removed=495,000
+    buffers: shared hit=8,000 read=0
+```
+
+## Summary
+
+- **Slowest node (exclusive):** [1] Seq Scan on rule_orders — 120.0ms (96% of total)
+- **Worst filter ratio:** [1] Seq Scan on rule_orders — 1% rows kept (495,000 removed)
+
+## Findings
+
+### 🔴 CRITICAL — [1] Seq Scan on rule_orders · filter_removal_ratio
+
+99% of rows read are discarded by filter (495000 rows removed, 5000 kept).
+
+<details>
+<summary>Details</summary>
+
+**What happened**
+
+A scan reads many rows and throws most of them away with a filter.
+The filter runs AFTER the rows have already been read from disk
+or cache.
+
+**Why it matters**
+
+Reading rows you discard is wasted I/O and CPU. The waste scales
+with table size — as the table grows, performance degrades faster
+than query complexity suggests.
+
+**What to do**
+
+This rule alone is diagnostic. Check the node for a companion
+missing_index_on_filter finding — if present, its suggestion is
+the fix. If absent (perhaps because the filter expression is too
+complex to parse), consider manually designing an index that
+covers the filter condition, or restructuring the query to filter
+earlier (e.g., push conditions into a WHERE clause instead of HAVING).
+
+</details>
+
+### 🔴 CRITICAL — [1] Seq Scan on rule_orders · hot_node
+
+This node accounts for 96% of total query time (120.0ms of 125.3ms).
+
+<details>
+<summary>Details</summary>
+
+**What happened**
+
+A single node consumes a large share of the query's total time. The
+rest of the plan finishes quickly; this one node is the bottleneck.
+
+**Why it matters**
+
+Optimization effort here has the highest return. Improving a node
+that takes 80% of the time can cut query time in half; improving
+one that takes 5% barely moves the needle.
+
+**What to do**
+
+Focus investigation on this node. Check whether it has companion
+findings on the same node — missing_index_on_filter or
+row_misestimate are common co-occurrences that point to concrete
+fixes. If no companion findings exist, examine the node type:
+Seq Scan over a large table usually wants an index; Sort over a
+large result usually wants more work_mem or better grouping.
+
+</details>
+
+### 🔴 CRITICAL — [1] Seq Scan on rule_orders · missing_index_on_filter
+
+Filter removes 99% of rows scanned (495000 rows). Consider an index to push the predicate down. (schema not available to verify)
+
+**Suggested:**
+
+```sql
+CREATE INDEX ON rule_orders (status);
+```
+
+<details>
+<summary>Details</summary>
+
+**What happened**
+
+A scan reads a large number of rows and filters most of them out.
+An index that includes the filter columns would let PostgreSQL
+access only the matching rows directly.
+
+**Why it matters**
+
+Without the index, the query's cost grows linearly with table
+size. With a btree index on the filter columns, lookup becomes
+logarithmic — enormously faster for large tables. This is among
+the most impactful single changes you can make.
+
+**What to do**
+
+1. Review the Suggested CREATE INDEX statement above. It names
+   the columns parsed from the filter expression.
+2. Verify the suggested column order matches your query patterns.
+   For multi-column filters, put the most selective (narrowest)
+   column first.
+3. Consider a partial index if the filter is highly selective:
+     CREATE INDEX ON <table> (<col>) WHERE <stable_condition>;
+4. Factor in write cost: every INSERT and UPDATE pays a small
+   overhead for each index. Heavily-written tables should have
+   only the indexes that measurably help reads.
+
+</details>
+
+### 🔵 INFO — [1] Seq Scan on rule_orders · table_bloat
+
+Scan reads 8000 blocks (62.5 MB) for 500000 rows — approximately 131 bytes per row. This may indicate table bloat or dead tuples.
+
+**Suggested:**
+
+```sql
+VACUUM (ANALYZE) rule_orders;
+```
+
+<details>
+<summary>Details</summary>
+
+**What happened**
+
+A scan reads substantially more bytes than the row count would
+suggest. This often indicates dead tuples — rows that were
+deleted or updated but whose space hasn't been reclaimed.
+
+**Why it matters**
+
+Bloated tables waste I/O and cache. Every scan reads not just
+the live rows but also the dead ones that autovacuum hasn't
+cleaned up. In extreme cases, a 10 GB table can effectively
+behave like a 50 GB table.
+
+**What to do**
+
+1. Run VACUUM (ANALYZE) on the table to reclaim dead tuple space:
+     VACUUM (ANALYZE) <table>;
+   This is online and safe.
+2. If bloat is severe (rare), consider VACUUM FULL, but note it
+   takes an exclusive lock and rewrites the whole table:
+     VACUUM FULL <table>;
+3. Investigate why autovacuum isn't keeping up. Look at
+   autovacuum settings and the table's update/delete patterns.
+   Heavy write workloads may need more aggressive autovacuum
+   thresholds.
+
+</details>
+
+---
+
+**Total:** 4 findings (3 critical, 1 info)
+
+---
+
+*Generated by [dbagent](https://github.com/byksy/dbagent).*

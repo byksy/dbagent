@@ -15,18 +15,31 @@ The tool is being built in stages. Upcoming work includes an expanded rule set, 
 
 ## Installation
 
-**Users:**
+### Homebrew (macOS / Linux)
 
 ```bash
-go install github.com/byksy/dbagent/cmd/dbagent@v0.5.7
+brew install byksy/tap/dbagent
 ```
 
-(Until the module is mature, pin to a specific tag. `@latest` will resolve
-to the newest tagged release.)
+### Precompiled binaries
 
-Homebrew, precompiled binaries, and a Docker image are *coming in v0.3 — see the roadmap*.
+Download the binary for your platform from the [Releases](https://github.com/byksy/dbagent/releases) page. Each release ships archives for Linux, macOS, and Windows on amd64 / arm64 (Windows arm64 excepted), plus a `checksums.txt` for verification.
 
-**From source (contributors):**
+### Go install
+
+If you have Go 1.22 or later:
+
+```bash
+go install github.com/byksy/dbagent/cmd/dbagent@latest
+```
+
+Pin to a specific tag if you need a stable artifact in CI:
+
+```bash
+go install github.com/byksy/dbagent/cmd/dbagent@v0.6.0
+```
+
+### From source (contributors)
 
 ```bash
 git clone https://github.com/byksy/dbagent.git
@@ -159,7 +172,7 @@ Parse and render an `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` plan from a file o
 
 ```
 --plan-file string       path to EXPLAIN JSON file; empty means read from stdin
---format string          output format: tree (default), table, json
+--format string          output format: tree (default), table, json, markdown
 --schema string          schema.json for offline analysis; --schema= opts out of live fetch
 --fail-on string         exit code 7 if any finding reaches this severity: info|warning|critical
 --explain                include detailed explanations (what happened, why it matters, what to do) with each finding
@@ -225,6 +238,16 @@ dbagent analyze --plan-file plan.json --format json --explain | jq '.summary.fin
 ```
 
 Without `--explain`, the `explanation` field is omitted from each finding so the JSON shape stays backward-compatible with pre-5.7 consumers.
+
+#### Markdown reports
+
+For sharing analysis results in pull requests, Slack, or issue trackers:
+
+```bash
+dbagent analyze --plan-file plan.json --format markdown > report.md
+```
+
+Markdown is the "sharing" format — readers usually open it away from the original plan — so detail is on by default. Each finding gets a severity-coloured H3 plus a `<details>` block carrying the full "what happened / why it matters / what to do" writeup. Output is plain ASCII / Unicode (no ANSI), safe to paste into any GitHub-flavoured markdown renderer (GitHub, GitLab, Notion, Slack, Obsidian).
 
 Capture plans from PostgreSQL using:
 
@@ -337,12 +360,13 @@ go1.22.x linux/amd64
 3. ✓ Stage 3 — Rule engine: first eight diagnostic and prescriptive findings
 4. ✓ Stage 4 — Schema introspection, `schema` + `schema export` commands, schema-aware rules, `fk_missing_index` finding
 5. ✓ Stage 5 — Expanded rule catalog to 17 rules + `docs/decisions.md`
-5.5. ✓ **Stage 5.5 — `dbagent stats` workload analysis with colored terminal / HTML / JSON output** *(current — see [`docs/stats.md`](docs/stats.md))*
-6. Stage 6 — Output formats (JSON, Markdown) and shareable reports
-7. Stage 7 — Homebrew, precompiled binaries (GoReleaser + GitHub Actions)
-8. Stage 8 — hypopg integration for index simulation
-9. Stage 9 — Optional LLM layer for human-language explanations
-10. Stage 10 — Multi-connection / profile support
+5.5. ✓ Stage 5.5 — `dbagent stats` workload analysis with colored terminal / HTML / JSON output (see [`docs/stats.md`](docs/stats.md))
+5.6. ✓ Stage 5.6 — `dbagent config` (show / path / reset) and `init --force`
+5.7. ✓ Stage 5.7 — `--explain` flag for `dbagent analyze`, with per-rule explanations
+6. ✓ **Stage 6 — `--format markdown`, GoReleaser-driven release pipeline, Homebrew tap, precompiled binaries** *(current)*
+7. Stage 7 — `hypopg` integration for index simulation
+8. Stage 8 — Optional LLM layer for human-language explanations
+9. Stage 9 — Multi-connection / profile support
 
 ## Contributing
 
