@@ -349,7 +349,7 @@ good config. Interactive runs prompt before overwriting.
 Print version and runtime info:
 
 ```
-dbagent v0.5.7
+dbagent v0.6.0
 go1.22.x linux/amd64
 ```
 
